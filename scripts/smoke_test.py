@@ -7,12 +7,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.common.config import ExperimentConfig, RingConfig, ServerIOConfig, StorageConfig
+from src.common.config import AtomConfig, ExperimentConfig, RingConfig, ServerIOConfig, StorageConfig
 from src.common.latency_model import LatencyModel
 from src.common.types import BlockAddress, OperationType, Request, RequestKind
 from src.protocols.direct_store import DirectStore
 from src.protocols.path_oram import PathORAM
 from src.protocols.ring_oram import RingORAM
+from src.protocols.atom_oram import AtomORAM
 
 
 def print_summary(name: str, phase: str, result, estimate) -> None:
@@ -56,11 +57,13 @@ def main() -> None:
     direct = DirectStore(config=storage_cfg)
     path = PathORAM(config=storage_cfg, rng_seed=7)
     ring = RingORAM(storage_config=storage_cfg,ring_config=RingConfig(s_num=12, a_num=8),rng_seed=7)
+    atom = AtomORAM(storage_config=storage_cfg,atom_config=AtomConfig(lambda1=1.0,tick_interval_sec=0.001,queue_limit=100000,),rng_seed=7)
 
     protocols = [
         ("DirectStore", direct),
         ("PathORAM", path),
         ("RingORAM", ring),
+        ("AtomORAM", atom),
     ]
 
     for name, proto in protocols:
