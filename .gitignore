@@ -4,3 +4,4 @@ __pycache__/
 .pytest_cache/
 data/processed/
 data/tmp/
+artifacts/csv/E1_AliC_CDF.csv
