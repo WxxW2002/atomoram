@@ -29,8 +29,12 @@ Requirements
 The tree structure of the project is as follows:
 ```text
 .
-├── artifacts/          # Generated outputs (PDF figures and CSV data)
-├── data/               # Raw and processed trace datasets (MSRC, AliCloud)
+├── artifacts/
+│   ├── figs/           # Generated figure files
+│   └── csv/            # Generated CSV data files
+├── data/
+│   ├── raw/             # Raw trace datasets (MSRC, AliCloud)
+│   └── processed/       # Processed trace subsets
 ├── scripts/            # Experiment execution scripts (E1-E5, A1-A2)
 ├── src/                # Core ORAM protocols and simulation engine
 │   ├── backend/        # B-Tree storage abstractions
