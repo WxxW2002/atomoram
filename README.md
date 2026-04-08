@@ -88,8 +88,10 @@ This command verifies the feasibility of the Sparse Access Assumption on real-wo
 
 The generated figure is saved in artifacts/figs/Fig1_Sparse_Slack_CDF.pdf, and the raw data is saved in artifacts/csv/E1_MSRC_CDF.csv, artifacts/csv/E1_Alic_CDF.csv.
 
-Sample figure 1 output:
-![Figure 1: Sparse Slack CDF](artifacts/figs/Fig1_Sparse_Slack_CDF.pdf)
+<details>
+<summary>Sample Figure 1 output</summary>
+<img src="artifacts/figs/Fig1_Sparse_Slack_CDF.png">
+</details>
 
 ---
 
@@ -102,8 +104,10 @@ This command directly validates the core contribution: AtomORAM maintains $O(1)$
 
 The generated figure is saved in artifacts/figs/Fig2_Mechanism_Validation.pdf, and the raw data is saved in artifacts/csv/E2_Online_IO.csv, artifacts/csv/E2_Online_Latency.csv.
 
-Sample figure 2 output:
-![Figure 2: Mechanism Validation](artifacts/figs/Fig2_Mechanism_Validation.pdf)
+<details>
+<summary>Sample Figure 2 output</summary>
+<img src="artifacts/figs/Fig2_Mechanism_Validation.png">
+</details>
 
 ---
 
@@ -116,8 +120,10 @@ This command runs a boundary sweep experiment demonstrating system behavior acro
 
 The generated figure is saved in artifacts/figs/Fig3_Sparsity_Sweep.pdf, and the raw data is saved in artifacts/csv/E3_Sparsity_Sweep.csv.
 
-Sample figure 3 output:
-![Figure 3: Sparsity Sweep](artifacts/figs/Fig3_Sparsity_Sweep.pdf)
+<details>
+<summary>Sample Figure 3 output</summary>
+<img src="artifacts/figs/Fig3_Sparsity_Sweep.png">
+</details>
 
 ---
 
@@ -130,8 +136,10 @@ This command performs an end-to-end P95 latency evaluation comparing AtomORAM ag
 
 The generated figure is saved in artifacts/figs/Fig4_Real_Trace_Comparison.pdf, and the raw data is saved in artifacts/csv/E4_Real_Trace_Comparison.csv.
 
-Sample figure 4 output:
-![Figure 4: Real-World Trace Comparison](artifacts/figs/Fig4_Real_Trace_Comparison.pdf)
+<details>
+<summary>Sample Figure 4 output</summary>
+<img src="artifacts/figs/Fig4_Real_Trace_Comparison.png">
+</details>  
 
 ---
 
@@ -144,8 +152,10 @@ This command demonstrates the resilience and self-healing capability of AtomORAM
 
 The generated figure is saved in artifacts/figs/Fig5_Burst_Recovery.pdf, and the raw data is saved in artifacts/csv/E5_Burst_Recovery.csv.
 
-Sample figure 5 output:
-![Figure 5: Burst Recovery](artifacts/figs/Fig5_Burst_Recovery.pdf)
+<details>
+<summary>Sample Figure 5 output</summary>
+<img src="artifacts/figs/Fig5_Burst_Recovery.png">
+</details>
 
 ---
 
@@ -158,12 +168,15 @@ This command runs appendix experiments demonstrating the physical bounds of the 
 
 The generated figures are saved in artifacts/figs/FigA1_Stash_Distribution.pdf and artifacts/figs/FigA2_Queue_Distribution.pdf, and the raw data is saved in artifacts/csv/A1_A2_*_Distribution.csv.
 
-Sample figure A1 output:
-![Figure A1: Stash Distribution](artifacts/figs/FigA1_Stash_Distribution.pdf)
+<details>
+<summary>Sample Figure A1 output</summary>
+<img src="artifacts/figs/FigA1_Stash_Distribution.png">
+</details>
 
-Sample figure A2 output:
-![Figure A2: Queue Distribution](artifacts/figs/FigA2_Queue_Distribution.pdf)
-
+<details>
+<summary>Sample Figure A2 output</summary>
+<img src="artifacts/figs/FigA2_Queue_Distribution.png">
+</details>
 
 
 
