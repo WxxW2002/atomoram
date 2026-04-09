@@ -31,13 +31,14 @@ def run_e1():
 
     ax.set_xscale('symlog', linthresh=0.1)
     ax.axvline(x=1.0, color='r', linestyle='--', label=r'$\lambda_1 = 1$')
-    ax.axvline(x=3.0, color='orange', linestyle=':', label=r'$\lambda_1 = 3$')
+    ax.axvline(x=3.0, color='orange', linestyle=':', label=r'$\lambda_1 = 3$ (Target)')
 
     ax.set_xlim(-0.01, 10000)
     ax.set_ylim(0, 1.05)
     ax.set_xlabel(r'Sparse Slack $\alpha = \Delta t_{real} / (L \cdot t_{virt})$')
     ax.set_ylabel('CDF')
-    ax.legend(loc='lower right')
+    
+    ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
     ax.grid(True, linestyle='--', alpha=0.5)
 
     plt.savefig('artifacts/figs/Fig1_Sparse_Slack_CDF.pdf', format='pdf', bbox_inches='tight')
