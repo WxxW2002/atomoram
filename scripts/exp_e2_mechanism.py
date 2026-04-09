@@ -26,10 +26,7 @@ def measure_online_cost(protocol_class, L, is_atom=False):
         protocol = protocol_class(storage_config)
         
     protocol.reset()
-    req = Request(request_id=1, kind=RequestKind.REAL, op=OperationType.WRITE,
-                  address=BlockAddress(logical_id=0), data=b'\x00' * 4096,
-                  arrival_time=0.0, issued_time=0.0, tag="e2")
-    
+    req = Request(request_id=1, kind=RequestKind.REAL, op=OperationType.WRITE, address=BlockAddress(logical_id=0), data=b'\x00' * 4096, arrival_time=0.0, issued_time=0.0, tag="e2")
     for _ in range(5): protocol.access(req)
         
     io_touches, latencies = [], []
@@ -44,9 +41,7 @@ def measure_online_cost(protocol_class, L, is_atom=False):
 
 def run_e2():
     L_values = [10, 12, 14, 16, 18, 20, 22, 24]
-    protocols = [('DirectStore', DirectStore, False), ('Path ORAM', PathORAM, False),
-                 ('Ring ORAM', RingORAM, False), ('AtomORAM', AtomORAM, True)]
-    
+    protocols = [('DirectStore', DirectStore, False), ('Path ORAM', PathORAM, False), ('Ring ORAM', RingORAM, False), ('AtomORAM', AtomORAM, True)]
     results_io, results_lat = {'L': L_values}, {'L': L_values}
     
     for name, cls, is_atom in protocols:
@@ -59,18 +54,21 @@ def run_e2():
     pd.DataFrame(results_io).to_csv('artifacts/csv/E2_Online_IO.csv', index=False)
     pd.DataFrame(results_lat).to_csv('artifacts/csv/E2_Online_Latency.csv', index=False)
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
     markers = ['x', 's', '^', 'o']
+    lines = []
+    labels = []
     for (name, _, _), marker in zip(protocols, markers):
-        ax1.plot(L_values, results_io[name], marker=marker, label=name, linewidth=2)
-        ax2.plot(L_values, results_lat[name], marker=marker, label=name, linewidth=2)
+        l, = ax1.plot(L_values, results_io[name], marker=marker, linewidth=2)
+        ax2.plot(L_values, results_lat[name], marker=marker, linewidth=2)
+        lines.append(l)
+        labels.append(name)
         
     ax1.set(xlabel='Tree Height $L$ ($\log N$)', ylabel='Online Server I/O (Buckets)')
     ax2.set(xlabel='Tree Height $L$ ($\log N$)', ylabel='Online Latency (ms)')
-    for ax in (ax1, ax2):
-        ax.grid(True, linestyle='--', alpha=0.5)
-        ax.legend()
-        
+    for ax in (ax1, ax2): ax.grid(True, linestyle='--', alpha=0.5)
+
+    fig.legend(lines, labels, loc='lower center', bbox_to_anchor=(0.5, 0.95), ncol=4, frameon=False)
     plt.tight_layout()
     plt.savefig('artifacts/figs/Fig2_Mechanism_Validation.pdf', format='pdf', bbox_inches='tight')
 

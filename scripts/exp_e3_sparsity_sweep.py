@@ -15,16 +15,13 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42
 
 def generate_synthetic_trace(alpha, base_gap, num_reqs=800):
     dt = alpha * base_gap
-    return [TraceRecord(trace_id=i, timestamp=i*dt, op=OperationType.WRITE if i % 2 == 0 else OperationType.READ,
-                        logical_id=i%1000, size_bytes=4096, source='synthetic', original_index=i, original_offset=0, request_group=0)
-            for i in range(num_reqs)]
+    return [TraceRecord(trace_id=i, timestamp=i*dt, op=OperationType.WRITE if i % 2 == 0 else OperationType.READ, logical_id=i%1000, size_bytes=4096, source='synthetic', original_index=i, original_offset=0, request_group=0) for i in range(num_reqs)]
 
 def run_e3():
     L, t_virt, lambda_1 = 20, 0.005, 3
     required_virtual_ticks = int(lambda_1 * L)
     base_gap = required_virtual_ticks * t_virt
     alphas = [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.5, 2.0]
-    
     data_out = []
     
     for alpha in alphas:
@@ -33,8 +30,7 @@ def run_e3():
         runner = AtomEventRunner(latency_model=LatencyModel(config=ExperimentConfig()), atom_config=AtomConfig(tick_interval_sec=t_virt))
         df = runner.run(protocol=protocol, records=records, block_size=4096, required_virtual_ticks=required_virtual_ticks, max_idle_ticks_after_last_arrival=0, record_virtuals=False)
         real_df = df[df['service_kind'] == 'real']
-        data_out.append({'Alpha': alpha, 'Mean_Latency': real_df['end_to_end_latency'].mean(),
-                         'P99_Latency': real_df['end_to_end_latency'].quantile(0.99), 'Max_Queue': real_df['queue_length_after'].max()})
+        data_out.append({'Alpha': alpha, 'Mean_Latency': real_df['end_to_end_latency'].mean(), 'P99_Latency': real_df['end_to_end_latency'].quantile(0.99), 'Max_Queue': real_df['queue_length_after'].max()})
 
     df_out = pd.DataFrame(data_out)
     df_out.to_csv('artifacts/csv/E3_Sparsity_Sweep.csv', index=False)
@@ -50,11 +46,11 @@ def run_e3():
     
     ax2 = ax1.twinx()
     ax2.set_ylabel('Max Queue Length', color=color2)
-    line3 = ax2.plot(df_out['Alpha'], df_out['Max_Queue'], marker='s', color=color2, label='Max Queue', linewidth=3, alpha=0.4)
+    line3 = ax2.plot(df_out['Alpha'], df_out['Max_Queue'], marker='s', color=color2, label='Max Queue', linewidth=2)
     ax2.tick_params(axis='y', labelcolor=color2)
     
     lines = line1 + line2 + line3 + [line_bound]
-    ax1.legend(lines, [l.get_label() for l in lines], loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2)
+    ax1.legend(lines, [l.get_label() for l in lines], loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=4, frameon=False)
     ax1.grid(True, linestyle='--', alpha=0.5)
     plt.savefig('artifacts/figs/Fig3_Sparsity_Sweep.pdf', format='pdf', bbox_inches='tight')
 

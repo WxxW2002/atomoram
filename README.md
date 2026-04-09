@@ -163,22 +163,35 @@ The generated figure is saved in artifacts/figs/Fig5_Burst_Recovery.pdf, and the
 
 ---
 
-#### Figure A1 & A2: Stash and Queue Empirical Distributions
+#### Figure A1: Stash and Queue Time Series
 ```bash
-python3 scripts/exp_a1_a2_distributions.py
+python3 scripts/exp_a1_bandwidth.py
 ```
+This command quantifies the total amortized bandwidth overhead. It demonstrates that while AtomORAM achieves $O(1)$ online server I/O, it honestly accounts for the necessary background bandwidth cost required to maintain security.
 
-This command runs appendix experiments demonstrating the physical bounds of the system in steady-state. Fig A1 proves that client stash size is tightly bounded ($O(1)$ physical memory), refuting trivial caching concerns. Fig A2 shows the long-tail queue distribution under dense workloads.
-
-The generated figures are saved in artifacts/figs/FigA1_Stash_Distribution.pdf and artifacts/figs/FigA2_Queue_Distribution.pdf, and the raw data is saved in artifacts/csv/A1_A2_*_Distribution.csv.
+The generated figure is saved in artifacts/figs/FigA1_Bandwidth.pdf, and the raw data is saved in artifacts/csv/A1_Bandwidth.csv.
 
 <details>
 <summary>Sample Figure A1 output</summary>
-<img src="artifacts/figs/FigA1_Stash_Distribution.png">
+<img src="artifacts/figs/FigA1_Bandwidth.png">
+</details>
+
+#### Figure A2: Stash and Queue Empirical Distributions
+```bash
+python3 scripts/exp_a2_distributions.py
+```
+
+This command runs appendix experiments demonstrating the physical bounds of the system in steady-state. FigA2_Stash_Distribution.pdf proves that client stash size is tightly bounded ($O(1)$ physical memory), refuting trivial caching concerns. FigA2_Queue_Distribution.pdf shows the long-tail queue distribution under dense workloads.
+
+The generated figures are saved in artifacts/figs/FigA2_Stash_Distribution.pdf and artifacts/figs/FigA2_Queue_Distribution.pdf, and the raw data is saved in artifacts/csv/A2_*_Distribution.csv.
+
+<details>
+<summary>Sample Figure A2 Stash output</summary>
+<img src="artifacts/figs/FigA2_Stash_Distribution.png">
 </details>
 
 <details>
-<summary>Sample Figure A2 output</summary>
+<summary>Sample Figure A2 Queue output</summary>
 <img src="artifacts/figs/FigA2_Queue_Distribution.png">
 </details>
 

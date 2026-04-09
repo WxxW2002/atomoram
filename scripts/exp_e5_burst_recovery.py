@@ -21,7 +21,7 @@ def generate_burst_trace(t_virt, required_virtual_ticks):
     for _ in range(100):
         records.append(TraceRecord(trace_id=trace_id, timestamp=current_time, op=OperationType.READ, logical_id=trace_id%1000, size_bytes=4096, source='b1', original_index=trace_id, original_offset=0, request_group=0))
         current_time += burst_gap; trace_id += 1
-    current_time += base_gap * 200 
+    current_time += base_gap * 100
     for _ in range(100):
         records.append(TraceRecord(trace_id=trace_id, timestamp=current_time, op=OperationType.READ, logical_id=trace_id%1000, size_bytes=4096, source='b2', original_index=trace_id, original_offset=0, request_group=0))
         current_time += burst_gap; trace_id += 1
