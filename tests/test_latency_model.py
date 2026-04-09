@@ -47,28 +47,20 @@ def test_latency_model_formula() -> None:
 
     estimate = model.estimate(metrics, queueing_delay=0.25)
 
-    # online_network = 80/100 + 40/200 + 2*0.5 = 0.8 + 0.2 + 1.0 = 2.0
     assert abs(estimate.online_network_time - 2.0) < 1e-12
 
-    # offline_network = 20/100 + 60/200 + 1*0.5 = 0.2 + 0.3 + 0.5 = 1.0
     assert abs(estimate.offline_network_time - 1.0) < 1e-12
 
-    # online_server_io = 3*0.1 + 1*0.2 = 0.5
     assert abs(estimate.online_server_io_time - 0.5) < 1e-12
 
-    # offline_server_io = 2*0.1 + 4*0.2 = 1.0
     assert abs(estimate.offline_server_io_time - 1.0) < 1e-12
 
-    # online_crypto = 80/800 + 40/400 = 0.1 + 0.1 = 0.2
     assert abs(estimate.online_crypto_time - 0.2) < 1e-12
 
-    # offline_crypto = 20/800 + 60/400 = 0.025 + 0.15 = 0.175
     assert abs(estimate.offline_crypto_time - 0.175) < 1e-12
 
-    # online_latency = 0.25 + 2.0 + 0.5 + 0.2 = 2.95
     assert abs(estimate.online_latency - 2.95) < 1e-12
 
-    # offline_latency = 1.0 + 1.0 + 0.175 = 2.175
     assert abs(estimate.offline_latency - 2.175) < 1e-12
 
     assert abs(estimate.total_latency - 5.125) < 1e-12

@@ -24,7 +24,6 @@ def test_load_msrc_trace_splits_and_compacts(tmp_path: Path) -> None:
 
     records = load_msrc_trace(csv_path, block_size=4096)
 
-    # Row1 -> block 1 ; Row2 -> blocks 3 and 4 ; compacted -> 0,1,2
     assert len(records) == 3
     assert records[0].timestamp == 0.0
     assert records[0].op == OperationType.READ
@@ -78,7 +77,6 @@ def test_generate_sparse_trace_uses_alpha_formula() -> None:
         t_virtual_sec=0.01,
         seed=1,
     )
-    # interval = 2.0 * 1.5 * 4 * 0.01 = 0.12
     assert abs(records[1].timestamp - 0.12) < 1e-12
     assert abs(records[2].timestamp - 0.24) < 1e-12
 

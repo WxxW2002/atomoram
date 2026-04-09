@@ -56,11 +56,9 @@ def run_e2():
             results_io[name].append(touches)
             results_lat[name].append(lat)
             
-    # 导出 CSV
     pd.DataFrame(results_io).to_csv('artifacts/csv/E2_Online_IO.csv', index=False)
     pd.DataFrame(results_lat).to_csv('artifacts/csv/E2_Online_Latency.csv', index=False)
     
-    # 绘图
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
     markers = ['x', 's', '^', 'o']
     for (name, _, _), marker in zip(protocols, markers):

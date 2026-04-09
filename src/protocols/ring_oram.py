@@ -26,15 +26,7 @@ def _truncate_payload(block: Optional[DataBlock]) -> Optional[bytes]:
 
 class RingORAM(AbstractORAM):
     """
-    Ring ORAM adapted from the V-ORAM reference implementation.
-
-    Important conventions:
-    - storage_config.bucket_size is interpreted as the number of real slots Z.
-    - The backend bucket capacity becomes Z + S, where S is the number of dummy slots.
-    - Communication accounting follows Ring ORAM semantics:
-        * read_ring_path() communicates only one block (server-side XOR abstraction)
-        * reshuffle / eviction communicate full buckets
-    - Server-I/O accounting explicitly counts actual bucket reads/writes.
+    Ring ORAM implementation.
     """
 
     SLOT_EMPTY_REAL = -1
@@ -80,9 +72,6 @@ class RingORAM(AbstractORAM):
         self.stash: dict[int, DataBlock] = {}
         self.position_map: list[Optional[int]] = [None] * self.logical_block_capacity
 
-        # Per bucket slot state:
-        #   real slots [0:Z): -1 means empty, otherwise logical block id
-        #   dummy slots [Z:Z+S): 1 means available dummy, 0 means already consumed
         self.address_map: list[list[int]] = []
         for _ in range(self.bucket_count):
             row = [self.SLOT_EMPTY_REAL] * self.real_bucket_size
@@ -186,9 +175,6 @@ class RingORAM(AbstractORAM):
 
         did_reshuffle = self._early_reshuffle(leaf=current_leaf, metrics=metrics)
 
-        # RTT accounting follows the V-ORAM Ring_ORAM implementation:
-        #   +1 RTT for read_ring_path
-        #   +1 RTT if either periodic eviction or any early reshuffle happened
         metrics.online_rtt += 1
         if did_periodic_eviction or did_reshuffle:
             metrics.online_rtt += 1
@@ -264,7 +250,6 @@ class RingORAM(AbstractORAM):
 
             self.count[flat_index] += 1
 
-        # Communication-wise, Ring ORAM returns only one block for the whole path.
         metrics.online_bytes_down += self.storage_config.block_size
         return found_block
 
@@ -352,7 +337,6 @@ class RingORAM(AbstractORAM):
             block = self.stash.pop(block_id)
             bucket.blocks[j] = block.clone()
 
-        # Real slots not used remain dummy blocks, with SLOT_EMPTY_REAL in address_map.
         slots = self.address_map[flat_index]
         for j in range(self.real_bucket_size):
             if j < len(selected_ids):
@@ -360,7 +344,6 @@ class RingORAM(AbstractORAM):
             else:
                 slots[j] = self.SLOT_EMPTY_REAL
 
-        # Dummy region is refreshed to "available dummies".
         for j in range(self.real_bucket_size, self.total_bucket_slots):
             slots[j] = self.SLOT_DUMMY_AVAILABLE
 

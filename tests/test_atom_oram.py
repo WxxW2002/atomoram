@@ -100,8 +100,7 @@ def test_atom_oram_local_greedy_writeback_target_then_parent() -> None:
     oram.debug_seed_bucket(bucket_address=target_bucket, blocks=[block_a])
     oram.debug_seed_bucket(bucket_address=parent_bucket, blocks=[block_b])
 
-    # Keep block_a on the target subtree after the read.
-    oram._sample_leaf = lambda: 5  # type: ignore[method-assign]
+    oram._sample_leaf = lambda: 5 
 
     req = Request(
         request_id=1,

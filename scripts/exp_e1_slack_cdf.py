@@ -24,7 +24,6 @@ def run_e1():
         sorted_data = np.sort(df['slack'])
         yvals = np.arange(len(sorted_data)) / float(len(sorted_data) - 1)
         
-        # 导出 CSV
         out_df = pd.DataFrame({'Slack_Alpha': sorted_data, 'CDF': yvals})
         out_df.to_csv(f"artifacts/csv/E1_{label[:4]}_CDF.csv", index=False)
         

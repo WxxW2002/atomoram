@@ -55,7 +55,6 @@ def test_ring_oram_write_then_read_basic_correctness() -> None:
 
 
 def test_ring_oram_periodic_eviction_trigger() -> None:
-    # Disable early reshuffle, force periodic eviction every 2 accesses.
     oram = make_oram(s_num=100, a_num=2)
 
     req1 = Request(
@@ -80,7 +79,6 @@ def test_ring_oram_periodic_eviction_trigger() -> None:
     )
     result2 = oram.access(req2)
 
-    # read_ring_path + full-path eviction
     assert result2.metrics.eviction_count == 1
     assert result2.metrics.online_bucket_reads == 2 * oram.num_levels
     assert result2.metrics.online_bucket_writes == oram.num_levels
@@ -88,7 +86,6 @@ def test_ring_oram_periodic_eviction_trigger() -> None:
 
 
 def test_ring_oram_early_reshuffle_trigger() -> None:
-    # With S=1, every bucket on the accessed path reaches the threshold after one access.
     oram = make_oram(s_num=1, a_num=100)
 
     req = Request(
@@ -100,7 +97,6 @@ def test_ring_oram_early_reshuffle_trigger() -> None:
     )
     result = oram.access(req)
 
-    # read_ring_path + reshuffle for every bucket on the path
     assert result.metrics.reshuffle_count == oram.num_levels
     assert result.metrics.online_bucket_reads == 2 * oram.num_levels
     assert result.metrics.online_bucket_writes == oram.num_levels

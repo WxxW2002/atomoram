@@ -20,7 +20,7 @@ ALICLOUD_COLUMNS = [
     "Timestamp",
 ]
 
-ALICLOUD_TIME_UNIT = 1e6  # microseconds -> seconds
+ALICLOUD_TIME_UNIT = 1e6
 
 
 def load_alicloud_trace(

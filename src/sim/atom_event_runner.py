@@ -34,8 +34,6 @@ class AtomEventRunner:
         if not ordered:
             return pd.DataFrame()
 
-        # 智能判定：如果不显式指定，小规模测试（如 pytest 或 E3）自动保留 Virtual 记录以通过断言，
-        # 大规模真实 Trace（如 E4/E5 10000+）自动关闭记录以防止内存 OOM。
         if record_virtuals is None:
             record_virtuals = len(ordered) <= 1500
 
@@ -52,18 +50,15 @@ class AtomEventRunner:
         idle_ticks_after_last_arrival = 0
         cooldown_ticks_remaining = 0  
         
-        # 全局虚拟开销计数器
         self.global_virtual_bytes_down = 0
         self.global_virtual_bytes_up = 0
         self.global_virtual_ticks_executed = 0
 
         while True:
-            # 1. 收集当前 tick_time 之前到达的真实请求
             while next_arrival_idx < len(ordered) and ordered[next_arrival_idx].timestamp <= tick_time:
                 pending_real.append(ordered[next_arrival_idx])
                 next_arrival_idx += 1
 
-            # 2. CPU 优化: Fast-Forward 时间跃迁
             pending_flush_count = getattr(protocol, "pending_flush_count", 0)
             if not pending_real and cooldown_ticks_remaining <= 0 and pending_flush_count == 0:
                 if next_arrival_idx < len(ordered):
@@ -81,7 +76,6 @@ class AtomEventRunner:
 
             generated_virtual_tick = True
 
-            # 3. 调度逻辑：仅当队列非空且冷却完毕时，处理真实请求
             if pending_real and cooldown_ticks_remaining <= 0:
                 queue_length_before = len(pending_real)
                 record = pending_real.popleft()
@@ -129,7 +123,6 @@ class AtomEventRunner:
                 cooldown_ticks_remaining = required_virtual_ticks
 
             else:
-                # 4. 虚拟访问逻辑
                 if next_arrival_idx >= len(ordered) and not pending_real:
                     if idle_ticks_after_last_arrival >= max_idle_ticks_after_last_arrival:
                         if getattr(protocol, "pending_flush_count", 0) == 0 and cooldown_ticks_remaining <= 0:
@@ -153,7 +146,6 @@ class AtomEventRunner:
                 self.global_virtual_bytes_down += result.metrics.total_bytes_down
                 self.global_virtual_bytes_up += result.metrics.total_bytes_up
 
-                # 新增：测试模式下保留虚拟访问记录，使得 pytest 断言通过
                 if record_virtuals:
                     estimate = self.latency_model.annotate(result, queueing_delay=0.0)
                     rows.append(

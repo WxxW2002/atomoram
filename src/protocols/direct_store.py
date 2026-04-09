@@ -26,11 +26,6 @@ def _truncate_payload(block: Optional[DataBlock]) -> Optional[bytes]:
 class DirectStore(AbstractORAM):
     """
     Non-ORAM lower bound.
-
-    Semantics:
-    - READ: one direct block read
-    - WRITE: one direct block write
-    - No stash, no position map, no queueing
     """
 
     def __init__(self, config: StorageConfig) -> None:

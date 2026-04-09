@@ -9,7 +9,7 @@ def make_oram(seed: int = 7) -> PathORAM:
     config = StorageConfig(
         block_size=32,
         bucket_size=4,
-        tree_height=4,   # 16 leaves, capacity = 64 logical blocks
+        tree_height=4,
         use_file_backend=False,
         data_dir="data/tmp",
     )

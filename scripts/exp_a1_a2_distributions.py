@@ -13,7 +13,7 @@ os.makedirs('artifacts/figs', exist_ok=True)
 os.makedirs('artifacts/csv', exist_ok=True)
 plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42, 'axes.linewidth': 1.2})
 
-def load_trace(file_path, limit=10000):
+def load_trace(file_path, limit=15000):
     df = pd.read_csv(file_path, nrows=limit)
     return [TraceRecord(trace_id=int(row['trace_id']), timestamp=float(row['timestamp']),
                         op=OperationType.WRITE if row['op'] == 'W' else OperationType.READ,

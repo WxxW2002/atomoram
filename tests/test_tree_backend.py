@@ -71,7 +71,7 @@ def test_write_bucket_and_read_back_round_trip() -> None:
 
 def test_path_helpers() -> None:
     backend = make_backend()
-    leaf = 5  # binary 101 for height=3
+    leaf = 5
 
     path = backend.path_to_leaf(leaf)
 

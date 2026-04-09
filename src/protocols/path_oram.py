@@ -25,18 +25,7 @@ def _truncate_payload(block: Optional[DataBlock]) -> Optional[bytes]:
 
 class PathORAM(AbstractORAM):
     """
-    Path ORAM adapted from the V-ORAM reference implementation.
-
-    Core flow:
-    1. Read the whole path for the currently assigned leaf.
-    2. Move all real blocks on that path into the stash.
-    3. Access/update the target block in the stash.
-    4. Reassign the target block to a new random leaf.
-    5. Evict stash blocks back to the same path from leaf to root.
-
-    Notes:
-    - Entire access is treated as online cost.
-    - This is an academic prototype, not a production implementation.
+    Path ORAM implementation.
     """
 
     def __init__(
@@ -51,7 +40,6 @@ class PathORAM(AbstractORAM):
         self.bucket_size = self.backend.bucket_size
         self.num_levels = self.backend.num_levels
 
-        # Maximum logical capacity when the address space is densely packed.
         self.logical_block_capacity = self.leaf_count * self.bucket_size
 
         self._rng = random.Random(rng_seed)
@@ -130,8 +118,6 @@ class PathORAM(AbstractORAM):
         metrics.path_length_touched = self.num_levels
         metrics.stash_size_after = len(self.stash)
 
-        # Follow V-ORAM’s accounting style: one RTT for reading the whole path,
-        # one RTT for writing the whole path back.
         metrics.online_rtt = 2
 
         if request.arrival_time is not None:
@@ -170,7 +156,6 @@ class PathORAM(AbstractORAM):
                 self.stash[block.block_id] = block
 
     def _evict_path(self, path, metrics: AccessMetrics) -> None:
-        # Evict from leaf to root, similar in spirit to the V-ORAM reference code.
         for address in reversed(path):
             eligible_ids = [
                 block_id

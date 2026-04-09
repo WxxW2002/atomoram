@@ -36,16 +36,7 @@ class PendingMaintenance:
 
 class AtomORAM(AbstractORAM):
     """
-    Phase-4 AtomORAM with:
-    - online single-bucket access
-    - immediate consumption of one flushable offline edge
-    - stale-bucket invalidation
-    - local two-bucket greedy writeback
-
-    Current semantics:
-    - access() completes one logical access:
-        OnlineAccessBucket(u) + OfflineFlushEdge(parent(u), u) if parent exists.
-    - root is a special case: no upward pairing is performed for root-target access.
+    AtomORAM implementation.
     """
 
     def __init__(
@@ -70,19 +61,13 @@ class AtomORAM(AbstractORAM):
 
         self._rng = random.Random(rng_seed)
 
-        # position_map[logical_id] is the current bucket address if the freshest copy
-        # is known to reside on the server. None means the freshest copy is currently
-        # in stash (or the block does not exist yet).
         self.position_map: list[Optional[BucketAddress]] = [None] * self.logical_block_capacity
 
         # Fresh logical state.
         self.stash: dict[int, DataBlock] = {}
 
-        # Buckets whose server contents are logically stale because they have already
-        # been pulled into stash and not yet rewritten with fresh contents.
         self.invalidated_buckets: set[tuple[int, int]] = set()
 
-        # Future OfflineFlushEdge(parent(u), u) work items.
         self.pending_maintenance: list[PendingMaintenance] = []
 
     def reset(self) -> None:
@@ -182,7 +167,6 @@ class AtomORAM(AbstractORAM):
         return result
 
     def tick(self, now: float) -> Optional[AccessResult]:
-        # Not implemented in the current phase.
         return None
 
     @property
@@ -227,8 +211,6 @@ class AtomORAM(AbstractORAM):
 
         bucket_key = self._bucket_key(target_bucket)
 
-        # If this bucket has already been logically pulled into the stash and not yet
-        # written back, its server content is stale and must not be re-imported.
         if bucket_key in self.invalidated_buckets:
             return
 
@@ -249,7 +231,6 @@ class AtomORAM(AbstractORAM):
     ) -> None:
         parent_bucket = self.backend.parent_address(target_bucket)
 
-        # Root is intentionally special-cased. There is no upward pairing for root.
         if parent_bucket is None:
             return
 
@@ -293,7 +274,6 @@ class AtomORAM(AbstractORAM):
             dummy_blocks=parent_contents.dummy_count(),
         )
 
-        # If the parent is still fresh on server, import it into stash first.
         if parent_key not in self.invalidated_buckets:
             for block in parent_contents.non_dummy_blocks():
                 if block.block_id is None:
@@ -301,11 +281,9 @@ class AtomORAM(AbstractORAM):
                 self.stash[block.block_id] = block.clone()
                 self.position_map[block.block_id] = None
 
-        # From this point until writeback completes, both buckets are treated as stale.
         self.invalidated_buckets.add(parent_key)
         self.invalidated_buckets.add(target_key)
 
-        # Deeper-first local greedy writeback.
         target_blocks = self._pop_eligible_blocks_for_bucket(target_bucket)
         parent_blocks = self._pop_eligible_blocks_for_bucket(parent_bucket)
 
@@ -322,7 +300,6 @@ class AtomORAM(AbstractORAM):
             rtt_count=0,
         )
 
-        # After fresh writeback, these buckets are no longer invalidated.
         self.invalidated_buckets.discard(target_key)
         self.invalidated_buckets.discard(parent_key)
 
@@ -368,18 +345,12 @@ class AtomORAM(AbstractORAM):
     def _bucket_key(address: BucketAddress) -> tuple[int, int]:
         return (address.level, address.index)
 
-    # ---------- debug / test helper ----------
     def debug_seed_bucket(
         self,
         *,
         bucket_address: BucketAddress,
         blocks: list[DataBlock],
     ) -> None:
-        """
-        Helper for unit tests only.
-        It writes the supplied blocks into a bucket and updates position_map
-        so that each non-dummy block is considered server-resident at bucket_address.
-        """
         bucket = Bucket(address=bucket_address, blocks=[block.clone() for block in blocks])
         self.backend.write_bucket(bucket)
 

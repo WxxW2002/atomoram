@@ -21,7 +21,7 @@ def main() -> None:
     msrc_path = REPO_ROOT / "data" / "raw" / "MSRC" / "src1_0_tripped.csv"
     alicloud_path = REPO_ROOT / "data" / "raw" / "AliCloud" / "io_traces_32.csv"
 
-    print("[1/2] parsing MSRC ...")
+    print("parsing MSRC ...")
     msrc_records = load_msrc_trace(
         msrc_path,
         block_size=cfg.storage.block_size,
@@ -33,7 +33,7 @@ def main() -> None:
     msrc_df.to_csv(msrc_out, index=False)
     print(f"  saved {len(msrc_df)} records to {msrc_out}")
 
-    print("[2/2] parsing AliCloud ...")
+    print("parsing AliCloud ...")
     alicloud_records = load_alicloud_trace(
         alicloud_path,
         block_size=cfg.storage.block_size,

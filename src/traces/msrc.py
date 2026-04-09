@@ -22,7 +22,7 @@ MSRC_COLUMNS = [
     "ResponseTime",
 ]
 
-MSRC_TIME_UNIT = 1e7  # 100ns ticks -> seconds
+MSRC_TIME_UNIT = 1e7
 
 
 def load_msrc_trace(
