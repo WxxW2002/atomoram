@@ -46,10 +46,8 @@ def run_e3():
     
     ax2 = ax1.twinx()
     ax2.set_ylabel('Max Queue Length', color=color2)
-    line3 = ax2.plot(df_out['Alpha'], df_out['Max_Queue'], marker='s', color=color2, label='Max Queue', linewidth=2)
+    line3 = ax2.plot(df_out['Alpha'], df_out['Max_Queue'], marker='s', color=color2, label='Max Queue', linewidth=2, alpha=0.5)
     ax2.tick_params(axis='y', labelcolor=color2)
-
-    ax2.set_ylim(0, df_out['Max_Queue'].max() * 1.2)
     
     lines = line1 + line2 + line3 + [line_bound]
     ax1.legend(lines, [l.get_label() for l in lines], loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=4, frameon=False)
