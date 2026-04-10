@@ -37,12 +37,12 @@ def run_e3():
     
     fig, ax1 = plt.subplots(figsize=(8, 5))
     color1, color2 = 'tab:blue', 'tab:orange'
-    ax1.set_xlabel(r'Sparsity Ratio $\alpha = \Delta t_{real} / (\lambda_1 \cdot L \cdot t_{virt})$')
+    ax1.set_xlabel(r'Sparsity Ratio $\beta = \Delta t_{real} / (\lambda_1 \cdot L \cdot t_{virt})$')
     ax1.set_ylabel('End-to-End Latency (s)', color=color1)
     line1 = ax1.plot(df_out['Alpha'], df_out['Mean_Latency'], marker='o', color=color1, label='Mean Latency', linewidth=2)
     line2 = ax1.plot(df_out['Alpha'], df_out['P99_Latency'], marker='^', color='tab:cyan', label='P99 Latency', linewidth=2, linestyle='--')
     ax1.tick_params(axis='y', labelcolor=color1)
-    line_bound = ax1.axvline(x=1.0, color='r', linestyle=':', label=r'Boundary ($\alpha=1$)')
+    line_bound = ax1.axvline(x=1.0, color='r', linestyle=':', label=r'Boundary ($\beta=1$)')
     
     ax2 = ax1.twinx()
     ax2.set_ylabel('Max Queue Length', color=color2)
