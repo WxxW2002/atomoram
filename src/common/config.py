@@ -31,8 +31,8 @@ class CryptoConfig:
 
 @dataclass(slots=True)
 class ServerIOConfig:
-    bucket_read_sec: float = 50e-6
-    bucket_write_sec: float = 50e-6
+    bucket_read_sec: float = 2e-3
+    bucket_write_sec: float = 2e-3
 
 
 @dataclass(slots=True)
@@ -43,8 +43,8 @@ class RingConfig:
 
 @dataclass(slots=True)
 class AtomConfig:
-    lambda1: float = 1.0
-    tick_interval_sec: float = 0.001
+    lambda1: float = 2.0
+    tick_interval_sec: float = 0.002
     queue_limit: int = 100000
 
 

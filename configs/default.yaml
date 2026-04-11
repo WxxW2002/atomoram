@@ -6,8 +6,8 @@ storage:
   data_dir: data/tmp
 
 network:
-  down_bw_bytes_per_sec: 10485760
-  up_bw_bytes_per_sec: 10485760
+  down_bw_bytes_per_sec: 104857600
+  up_bw_bytes_per_sec: 104857600
   rtt_sec: 0.01
 
 crypto:
@@ -15,14 +15,14 @@ crypto:
   dec_bytes_per_sec: 2000000000
 
 server_io:
-  bucket_read_sec: 0.00005
-  bucket_write_sec: 0.00005
+  bucket_read_sec: 0.002
+  bucket_write_sec: 0.002
 
 ring:
   s_num: 12
   a_num: 8
 
 atom:
-  lambda1: 1.0
-  tick_interval_sec: 0.001
+  lambda1: 2.0
+  tick_interval_sec: 0.002 
   queue_limit: 100000

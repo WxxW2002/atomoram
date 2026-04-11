@@ -1,7 +1,0 @@
-Trace,Protocol,Total_Bandwidth_MB
-MSRC (Sparse),Path ORAM,2645.5078125
-MSRC (Sparse),Ring ORAM,856.2646484375
-MSRC (Sparse),AtomORAM,18250.224609375
-AliCloud (Dense),Path ORAM,2645.5078125
-AliCloud (Dense),Ring ORAM,860.673828125
-AliCloud (Dense),AtomORAM,14805.45849609375

@@ -18,7 +18,7 @@ def generate_synthetic_trace(alpha, base_gap, num_reqs=800):
     return [TraceRecord(trace_id=i, timestamp=i*dt, op=OperationType.WRITE if i % 2 == 0 else OperationType.READ, logical_id=i%1000, size_bytes=4096, source='synthetic', original_index=i, original_offset=0, request_group=0) for i in range(num_reqs)]
 
 def run_e3():
-    L, t_virt, lambda_1 = 20, 0.005, 3
+    L, t_virt, lambda_1 = 20, 0.002, 2
     required_virtual_ticks = int(lambda_1 * L)
     base_gap = required_virtual_ticks * t_virt
     alphas = [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.5, 2.0]

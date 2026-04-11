@@ -167,7 +167,6 @@ class LatencyModel:
         result.timing.queueing_delay = estimate.queueing_delay
         result.timing.total_modeled_latency = estimate.total_latency
 
-        # 用户可见响应时间：arrival + online_latency
         if result.timing.arrival_time is not None:
             result.timing.response_time = result.timing.arrival_time + estimate.online_latency
             result.timing.end_to_end_latency = estimate.online_latency

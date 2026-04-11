@@ -23,7 +23,7 @@ def warmup_protocol(protocol, L, num_blocks=50000):
         for j in range(L): protocol.access(Request(request_id=-(i*L + j + 1000000), kind=RequestKind.VIRTUAL, op=OperationType.READ, address=None, data=None, arrival_time=0.0, issued_time=0.0, tag="warmup_virtual"))
 
 def run_a2():
-    L, t_virt, lambda_1 = 20, 0.005, 3
+    L, t_virt, lambda_1 = 20, 0.002, 2
     required_virtual_ticks = int(lambda_1 * L)
     traces = {'MSRC (Sparse)': 'data/processed/msrc_src1_0_trace.csv', 'AliCloud (Dense)': 'data/processed/alicloud_device32_trace.csv'}
     

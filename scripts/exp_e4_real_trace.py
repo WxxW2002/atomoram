@@ -32,7 +32,7 @@ def run_baseline(protocol, records, latency_model):
     return latencies
 
 def run_e4():
-    L, t_virt, lambda_1 = 20, 0.005, 3
+    L, t_virt, lambda_1 = 20, 0.002, 2
     required_virtual_ticks = int(lambda_1 * L)
     traces = {'MSRC (Sparse)': 'data/processed/msrc_src1_0_trace.csv', 'AliCloud (Dense)': 'data/processed/alicloud_device32_trace.csv'}
     
@@ -52,27 +52,48 @@ def run_e4():
         atom_lats = df_atom[df_atom['service_kind'] == 'real']['end_to_end_latency'].values
         
         for prot, lats in [('Path ORAM', path_lats), ('Ring ORAM', ring_lats), ('AtomORAM', atom_lats)]:
-            plot_data.append({'Trace': name, 'Protocol': prot, 'P50': np.percentile(lats, 50), 'P95': np.percentile(lats, 95), 'P99': np.percentile(lats, 99)})
+            plot_data.append({
+                'Trace': name, 
+                'Protocol': prot, 
+                'P5': np.percentile(lats, 5), 
+                'P50': np.percentile(lats, 50), 
+                'P95': np.percentile(lats, 95), 
+                'P99': np.percentile(lats, 99)
+            })
 
     df_plot = pd.DataFrame(plot_data)
     df_plot.to_csv('artifacts/csv/E4_Real_Trace_Comparison.csv', index=False)
     
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
     traces_labels = df_plot['Trace'].unique()
     x = np.arange(len(traces_labels))
     width = 0.25
     
     for i, prot in enumerate(df_plot['Protocol'].unique()):
-        y_vals = df_plot[df_plot['Protocol'] == prot]['P95']
-        ax.bar(x + (i - 1) * width, y_vals, width, label=prot)
+        y_vals_p5 = df_plot[df_plot['Protocol'] == prot]['P5']
+        ax1.bar(x + (i - 1) * width, y_vals_p5, width, label=prot)
+        
+        y_vals_p95 = df_plot[df_plot['Protocol'] == prot]['P95']
+        ax2.bar(x + (i - 1) * width, y_vals_p95, width, label=prot)
 
-    ax.set_ylabel('P95 End-to-End Latency (s)')
-    ax.set_xticks(x)
-    ax.set_xticklabels(traces_labels)
-    ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
-    ax.grid(axis='y', linestyle='--', alpha=0.7)
-    ax.set_yscale('log')
-    ax.set_ylim(10, 1000) 
+    ax1.set_ylabel('P5 End-to-End Latency (s)')
+    ax1.set_title('(a) P5 Latency Comparison')
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(traces_labels)
+    ax1.grid(axis='y', linestyle='--', alpha=0.7)
+    ax1.set_yscale('log')
+
+    ax2.set_ylabel('P95 End-to-End Latency (s)')
+    ax2.set_title('(b) P95 Latency Comparison')
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(traces_labels)
+    ax2.grid(axis='y', linestyle='--', alpha=0.7)
+    ax2.set_yscale('log')
+
+    lines, labels = ax1.get_legend_handles_labels()
+    fig.legend(lines, labels, loc='lower center', bbox_to_anchor=(0.5, 1.05), ncol=3, frameon=False)
+    
+    plt.tight_layout()
     plt.savefig('artifacts/figs/Fig4_Real_Trace_Comparison.pdf', format='pdf', bbox_inches='tight')
 
 if __name__ == '__main__':

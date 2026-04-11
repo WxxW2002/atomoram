@@ -28,7 +28,7 @@ def run_baseline_bw(protocol, records):
     return total_bytes
 
 def run_a1():
-    L, t_virt, lambda_1 = 20, 0.005, 3
+    L, t_virt, lambda_1 = 20, 0.002, 2
     required_virtual_ticks = int(lambda_1 * L)
     traces = {'MSRC (Sparse)': 'data/processed/msrc_src1_0_trace.csv', 'AliCloud (Dense)': 'data/processed/alicloud_device32_trace.csv'}
     storage_config = StorageConfig(tree_height=L, bucket_size=8, block_size=4096)

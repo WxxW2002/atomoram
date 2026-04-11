@@ -10,7 +10,7 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42
 
 def run_e1():
     L = 20
-    t_virt = 0.005 
+    t_virt = 0.002
     base_cost = L * t_virt
 
     fig, ax = plt.subplots(figsize=(8, 5))

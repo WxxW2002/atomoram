@@ -28,7 +28,7 @@ def generate_burst_trace(t_virt, required_virtual_ticks):
     return records
 
 def run_e5():
-    L, t_virt, lambda_1 = 20, 0.005, 3
+    L, t_virt, lambda_1 = 20, 0.002, 2
     required_virtual_ticks = int(lambda_1 * L)
     records = generate_burst_trace(t_virt, required_virtual_ticks)
     
