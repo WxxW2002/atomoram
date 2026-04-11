@@ -23,6 +23,6 @@ ring:
   a_num: 8
 
 atom:
-  lambda1: 2.0
-  tick_interval_sec: 0.002 
+  lambda1: 3.0
+  tick_interval_sec: 0.001
   queue_limit: 100000

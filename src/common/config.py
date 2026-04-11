@@ -43,8 +43,8 @@ class RingConfig:
 
 @dataclass(slots=True)
 class AtomConfig:
-    lambda1: float = 2.0
-    tick_interval_sec: float = 0.002
+    lambda1: float = 3.0
+    tick_interval_sec: float = 0.001
     queue_limit: int = 100000
 
 
@@ -74,6 +74,16 @@ class ExperimentConfig:
     @classmethod
     def from_yaml(cls, path: str | Path) -> "ExperimentConfig":
         yaml_path = Path(path)
+        if not yaml_path.exists():
+            return cls()
         with yaml_path.open("r", encoding="utf-8") as f:
             raw = yaml.safe_load(f) or {}
         return cls.from_dict(raw)
+
+    @classmethod
+    def load_default(cls) -> "ExperimentConfig":
+        repo_root = Path(__file__).resolve().parents[2]
+        yaml_path = repo_root / "configs" / "default.yaml"
+        if yaml_path.exists():
+            return cls.from_yaml(yaml_path)
+        return cls.from_yaml("configs/default.yaml")

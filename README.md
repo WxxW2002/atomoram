@@ -19,7 +19,8 @@ This implementation is open-sourced under the Apache v2 license([License](LICENS
 * [Figure 3: Synthetic Sparsity Sweep](#figure-3-synthetic-sparsity-sweep)
 * [Figure 4: Real-World Trace Comparison](#figure-4-real-world-trace-comparison)
 * [Figure 5: Burst Recovery](#figure-5-burst-recovery)
-* [Figure A1 & A2: Stash and Queue Empirical Distributions](#figure-a1--a2-stash-and-queue-empirical-distributions)
+* [Figure A1: Amortized Bandwidth](#figure-a1-amortized-bandwidth)
+* [Figure A2: Stash and Queue Distributions](#figure-a2-stash-and-queue-empirical-distributions)
 
 Requirements
 * **Environment**: Ubuntu 22.04 LTS (Recommended)
@@ -75,7 +76,10 @@ The evaluation compares AtomORAM with the following baselines:Non-recursive Path
     ```bash
     pytest -q
     ```
-
+5. Prepare trace data for evaluation:
+    ```bash
+    python3 scripts/prepare_traces.py
+    ```
 ---
 
 ### Experiment
@@ -163,7 +167,7 @@ The generated figure is saved in artifacts/figs/Fig5_Burst_Recovery.pdf, and the
 
 ---
 
-#### Figure A1: Stash and Queue Time Series
+#### Figure A1: Amortized Bandwidth
 ```bash
 python3 scripts/exp_a1_bandwidth.py
 ```

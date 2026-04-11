@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from src.common.config import ExperimentConfig
 
 os.makedirs('artifacts/figs', exist_ok=True)
 os.makedirs('artifacts/csv', exist_ok=True)
@@ -9,8 +10,11 @@ os.makedirs('artifacts/csv', exist_ok=True)
 plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42, 'axes.linewidth': 1.2})
 
 def run_e1():
-    L = 20
-    t_virt = 0.002
+    cfg = ExperimentConfig.load_default()
+    L = cfg.storage.tree_height
+    t_virt = cfg.atom.tick_interval_sec
+    lambda_1 = cfg.atom.lambda1
+    
     base_cost = L * t_virt
 
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -30,8 +34,8 @@ def run_e1():
         ax.plot(sorted_data, yvals, label=label, linewidth=2)
 
     ax.set_xscale('symlog', linthresh=0.1)
-    ax.axvline(x=1.0, color='r', linestyle='--', label=r'$\lambda_1 = 1$')
-    ax.axvline(x=3.0, color='orange', linestyle=':', label=r'$\lambda_1 = 3$ (Target)')
+    ax.axvline(x=1.0, color='r', linestyle='--', label=r'$\lambda_1 = 1.0$')
+    ax.axvline(x=lambda_1, color='orange', linestyle=':', label=rf'$\lambda_1 = {lambda_1}$ target')
 
     ax.set_xlim(-0.01, 10000)
     ax.set_ylim(0, 1.05)

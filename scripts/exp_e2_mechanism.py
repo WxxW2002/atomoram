@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from src.common.config import StorageConfig, AtomConfig, ExperimentConfig
+from src.common.config import ExperimentConfig
 from src.common.latency_model import LatencyModel
 from src.common.types import Request, RequestKind, OperationType, BlockAddress
 from src.protocols.direct_store import DirectStore
@@ -15,18 +15,17 @@ os.makedirs('artifacts/csv', exist_ok=True)
 plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42, 'axes.linewidth': 1.2})
 
 def measure_online_cost(protocol_class, L, is_atom=False):
-    storage_config = StorageConfig(tree_height=L, bucket_size=8, block_size=4096)
-    exp_config = ExperimentConfig()
-    latency_model = LatencyModel(config=exp_config)
+    cfg = ExperimentConfig.load_default()
+    cfg.storage.tree_height = L 
+    latency_model = LatencyModel(config=cfg)
     
     if is_atom:
-        atom_config = AtomConfig(tick_interval_sec=0.005)
-        protocol = protocol_class(storage_config, atom_config=atom_config)
+        protocol = protocol_class(cfg.storage, atom_config=cfg.atom)
     else:
-        protocol = protocol_class(storage_config)
+        protocol = protocol_class(cfg.storage)
         
     protocol.reset()
-    req = Request(request_id=1, kind=RequestKind.REAL, op=OperationType.WRITE, address=BlockAddress(logical_id=0), data=b'\x00' * 4096, arrival_time=0.0, issued_time=0.0, tag="e2")
+    req = Request(request_id=1, kind=RequestKind.REAL, op=OperationType.WRITE, address=BlockAddress(logical_id=0), data=b'\x00' * cfg.storage.block_size, arrival_time=0.0, issued_time=0.0, tag="e2")
     for _ in range(5): protocol.access(req)
         
     io_touches, latencies = [], []

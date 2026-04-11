@@ -15,7 +15,7 @@ from src.traces.schema import records_to_dataframe
 
 
 def main() -> None:
-    cfg = ExperimentConfig.from_yaml(REPO_ROOT / "configs" / "default.yaml")
+    cfg = ExperimentConfig.load_default()
     processed_dir = ensure_dir(REPO_ROOT / "data" / "processed")
 
     msrc_path = REPO_ROOT / "data" / "raw" / "MSRC" / "src1_0_tripped.csv"

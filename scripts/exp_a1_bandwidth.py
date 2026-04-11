@@ -6,7 +6,7 @@ from src.sim.atom_event_runner import AtomEventRunner
 from src.protocols.atom_oram import AtomORAM
 from src.protocols.path_oram import PathORAM
 from src.protocols.ring_oram import RingORAM
-from src.common.config import StorageConfig, AtomConfig, ExperimentConfig
+from src.common.config import ExperimentConfig
 from src.common.latency_model import LatencyModel
 from src.traces.schema import TraceRecord
 from src.common.types import OperationType, Request, RequestKind, BlockAddress
@@ -19,31 +19,32 @@ def load_trace(file_path, limit=2000):
     df = pd.read_csv(file_path, nrows=limit)
     return [TraceRecord(trace_id=int(row['trace_id']), timestamp=float(row['timestamp']), op=OperationType.WRITE if row['op'] == 'W' else OperationType.READ, logical_id=int(row['logical_id']), size_bytes=int(row['size_bytes']), source='trace', original_index=int(row['trace_id']), original_offset=0, request_group=0) for _, row in df.iterrows()]
 
-def run_baseline_bw(protocol, records):
+def run_baseline_bw(protocol, records, block_size):
     total_bytes = 0
     for rec in records:
-        req = Request(request_id=rec.trace_id, kind=RequestKind.REAL, op=rec.op, address=BlockAddress(logical_id=rec.logical_id), data=b'\x00'*4096 if rec.op == OperationType.WRITE else None, arrival_time=rec.timestamp, issued_time=0.0, tag="baseline")
+        req = Request(request_id=rec.trace_id, kind=RequestKind.REAL, op=rec.op, address=BlockAddress(logical_id=rec.logical_id), data=b'\x00'*block_size if rec.op == OperationType.WRITE else None, arrival_time=rec.timestamp, issued_time=0.0, tag="baseline")
         res = protocol.access(req)
         total_bytes += res.metrics.total_bytes_down + res.metrics.total_bytes_up
     return total_bytes
 
 def run_a1():
-    L, t_virt, lambda_1 = 20, 0.002, 2
+    cfg = ExperimentConfig.load_default()
+    L = cfg.storage.tree_height
+    lambda_1 = cfg.atom.lambda1
+    block_size = cfg.storage.block_size
     required_virtual_ticks = int(lambda_1 * L)
-    traces = {'MSRC (Sparse)': 'data/processed/msrc_src1_0_trace.csv', 'AliCloud (Dense)': 'data/processed/alicloud_device32_trace.csv'}
-    storage_config = StorageConfig(tree_height=L, bucket_size=8, block_size=4096)
-    atom_config = AtomConfig(tick_interval_sec=t_virt)
     
+    traces = {'MSRC (Sparse)': 'data/processed/msrc_src1_0_trace.csv', 'AliCloud (Dense)': 'data/processed/alicloud_device32_trace.csv'}
     plot_data = []
     
     for name, path in traces.items():
         records = load_trace(path, limit=2000)
         
-        bw_path = run_baseline_bw(PathORAM(storage_config), records)
-        bw_ring = run_baseline_bw(RingORAM(storage_config), records)
+        bw_path = run_baseline_bw(PathORAM(cfg.storage), records, block_size)
+        bw_ring = run_baseline_bw(RingORAM(cfg.storage), records, block_size)
         
-        runner = AtomEventRunner(latency_model=LatencyModel(config=ExperimentConfig()), atom_config=atom_config)
-        df_atom = runner.run(protocol=AtomORAM(storage_config, atom_config=atom_config), records=records, block_size=4096, required_virtual_ticks=required_virtual_ticks, max_idle_ticks_after_last_arrival=0, record_virtuals=False)
+        runner = AtomEventRunner(latency_model=LatencyModel(config=cfg), atom_config=cfg.atom)
+        df_atom = runner.run(protocol=AtomORAM(cfg.storage, atom_config=cfg.atom), records=records, block_size=block_size, required_virtual_ticks=required_virtual_ticks, max_idle_ticks_after_last_arrival=0, record_virtuals=False)
         
         real_df = df_atom[df_atom['service_kind'] == 'real']
         bw_atom_real = real_df['online_bytes_down'].sum() + real_df['online_bytes_up'].sum() + real_df['offline_bytes_down'].sum() + real_df['offline_bytes_up'].sum()
