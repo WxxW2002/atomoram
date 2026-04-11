@@ -35,7 +35,7 @@ def run_e1():
 
     ax.set_xscale('symlog', linthresh=0.1)
     ax.axvline(x=1.0, color='r', linestyle='--', label=r'$\lambda_1 = 1.0$')
-    ax.axvline(x=lambda_1, color='orange', linestyle=':', label=rf'$\lambda_1 = {lambda_1}$ target')
+    ax.axvline(x=lambda_1, color='orange', linestyle=':', label=rf'$\lambda_1 = {lambda_1}$ (target)')
 
     ax.set_xlim(-0.01, 10000)
     ax.set_ylim(0, 1.05)
