@@ -4,6 +4,7 @@ from dataclasses import replace
 from typing import Optional
 
 from src.backend.memory_store import InMemoryBucketStore
+from src.backend.file_store import FileBucketStore
 from src.common.config import StorageConfig
 from src.common.interfaces import AbstractBucketStore
 from src.common.types import Bucket, BucketAddress, DataBlock
@@ -53,7 +54,19 @@ class TreeBackend:
         self.leaf_count = leaf_count_from_height(self.tree_height)
         self.bucket_count = bucket_count_from_height(self.tree_height)
         self.block_metadata_bytes = block_metadata_bytes
-        self.bucket_store = bucket_store or InMemoryBucketStore()
+        if bucket_store is not None:
+            self.bucket_store = bucket_store
+        elif config.use_file_backend:
+            self.bucket_store = FileBucketStore(
+                data_dir=config.data_dir,
+                bucket_count=self.bucket_count,
+                bucket_size=self.bucket_size,
+                block_size=self.block_size,
+                block_metadata_bytes=self.block_metadata_bytes,
+                data_file_size=config.data_file_size,
+            )
+        else:
+            self.bucket_store = InMemoryBucketStore()
 
     @property
     def block_storage_bytes(self) -> int:

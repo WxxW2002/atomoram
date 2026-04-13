@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from src.common.config import ExperimentConfig
 from src.common.latency_model import LatencyModel
 from src.common.types import Request, RequestKind, OperationType, BlockAddress
+from src.common.exp_utils import instantiate_protocol, prepare_storage_config
 from src.protocols.direct_store import DirectStore
 from src.protocols.path_oram import PathORAM
 from src.protocols.ring_oram import RingORAM
@@ -16,23 +17,41 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42
 
 def measure_online_cost(protocol_class, L, is_atom=False):
     cfg = ExperimentConfig.load_default()
-    cfg.storage.tree_height = L 
+    cfg.storage.tree_height = L
     latency_model = LatencyModel(config=cfg)
-    
-    if is_atom:
-        protocol = protocol_class(cfg.storage, atom_config=cfg.atom)
-    else:
+
+    if protocol_class.__name__ == "DirectStore":
         protocol = protocol_class(cfg.storage)
-        
-    protocol.reset()
-    req = Request(request_id=1, kind=RequestKind.REAL, op=OperationType.WRITE, address=BlockAddress(logical_id=0), data=b'\x00' * cfg.storage.block_size, arrival_time=0.0, issued_time=0.0, tag="e2")
-    for _ in range(5): protocol.access(req)
-        
+    else:
+        storage_cfg = prepare_storage_config(
+            cfg.storage,
+            exp_name="e2",
+            protocol_name=protocol_class.__name__,
+            run_tag=f"L{L}",
+        )
+        protocol = instantiate_protocol(protocol_class, cfg, storage_cfg, rng_seed=0)
+
+    req = Request(
+        request_id=1,
+        kind=RequestKind.REAL,
+        op=OperationType.WRITE,
+        address=BlockAddress(logical_id=0),
+        data=b"\x00" * cfg.storage.block_size,
+        arrival_time=0.0,
+        issued_time=0.0,
+        tag="e2",
+    )
+
+    for _ in range(5):
+        protocol.access(req)
+
     io_touches, latencies = [], []
     for _ in range(10):
         res = protocol.access(req)
         est = latency_model.annotate(res, queueing_delay=0.0)
-        touches = 1 if protocol_class.__name__ == 'DirectStore' else res.metrics.online_bucket_reads + res.metrics.online_bucket_writes
+        touches = 1 if protocol_class.__name__ == "DirectStore" else (
+            res.metrics.online_bucket_reads + res.metrics.online_bucket_writes
+        )
         io_touches.append(touches)
         latencies.append(est.online_latency * 1000)
 

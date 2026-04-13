@@ -7,6 +7,7 @@ from src.common.config import ExperimentConfig
 from src.common.latency_model import LatencyModel
 from src.traces.schema import TraceRecord
 from src.common.types import OperationType
+from src.common.exp_utils import instantiate_protocol, prepare_storage_config
 
 os.makedirs('artifacts/figs', exist_ok=True)
 os.makedirs('artifacts/csv', exist_ok=True)
@@ -34,22 +35,36 @@ def run_e5():
     lambda_1 = cfg.atom.lambda1
     block_size = cfg.storage.block_size
     required_virtual_ticks = int(lambda_1 * L)
-    
+
     records = generate_burst_trace(t_virt, required_virtual_ticks, block_size)
-    
-    protocol = AtomORAM(cfg.storage, atom_config=cfg.atom)
+
+    storage_cfg = prepare_storage_config(
+        cfg.storage,
+        exp_name="e5",
+        protocol_name="AtomORAM",
+        run_tag="burst_recovery",
+    )
+    protocol = instantiate_protocol(AtomORAM, cfg, storage_cfg, rng_seed=0)
+
     runner = AtomEventRunner(latency_model=LatencyModel(config=cfg), atom_config=cfg.atom)
-    df = runner.run(protocol=protocol, records=records, block_size=block_size, required_virtual_ticks=required_virtual_ticks, max_idle_ticks_after_last_arrival=0, record_virtuals=False)
-    
-    real_df = df[df['service_kind'] == 'real'][['arrival_time', 'queue_length_after']]
-    real_df.to_csv('artifacts/csv/E5_Burst_Recovery.csv', index=False)
-    
-    plt.figure(figsize=(10, 4))
-    plt.plot(real_df['arrival_time'], real_df['queue_length_after'], marker='.', linestyle='-', color='tab:blue', linewidth=2)
-    plt.xlabel('Time (s)')
-    plt.ylabel('Queue Length')
-    plt.grid(True, linestyle='--', alpha=0.5)
-    plt.savefig('artifacts/figs/Fig5_Burst_Recovery.pdf', format='pdf', bbox_inches='tight')
+    df = runner.run(
+        protocol=protocol,
+        records=records,
+        block_size=block_size,
+        required_virtual_ticks=required_virtual_ticks,
+        max_idle_ticks_after_last_arrival=0,
+        record_virtuals=False,
+    )
+
+    real_df = df[df["service_kind"] == "real"][["arrival_time", "queue_length_after"]]
+    real_df.to_csv("artifacts/csv/E5_Burst_Recovery.csv", index=False)
+
+    plt.figure(figsize=(8, 4))
+    plt.plot(real_df["arrival_time"], real_df["queue_length_after"], marker=".", linestyle="-", color="tab:blue", linewidth=2)
+    plt.xlabel("Time (s)")
+    plt.ylabel("Queue Length")
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.savefig("artifacts/figs/Fig5_Burst_Recovery.pdf", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':
     run_e5()

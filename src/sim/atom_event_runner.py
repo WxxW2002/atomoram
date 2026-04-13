@@ -16,9 +16,16 @@ from src.traces.schema import TraceRecord
 class AtomEventRunner:
     latency_model: LatencyModel
     atom_config: AtomConfig
+
     global_virtual_bytes_down: int = 0
     global_virtual_bytes_up: int = 0
     global_virtual_ticks_executed: int = 0
+
+    required_virtual_bytes_down: int = 0
+    required_virtual_bytes_up: int = 0
+    required_virtual_ticks_executed: int = 0
+
+    skipped_idle_ticks: int = 0
 
     def run(
         self,
@@ -28,7 +35,7 @@ class AtomEventRunner:
         block_size: int,
         required_virtual_ticks: int = 0,
         max_idle_ticks_after_last_arrival: int = 0,
-        record_virtuals: Optional[bool] = None,  # 新增：显式控制是否记录虚拟访问
+        record_virtuals: Optional[bool] = None, 
     ) -> pd.DataFrame:
         ordered = sorted(records, key=lambda r: (r.timestamp, r.trace_id))
         if not ordered:
@@ -54,6 +61,12 @@ class AtomEventRunner:
         self.global_virtual_bytes_up = 0
         self.global_virtual_ticks_executed = 0
 
+        self.required_virtual_bytes_down = 0
+        self.required_virtual_bytes_up = 0
+        self.required_virtual_ticks_executed = 0
+
+        self.skipped_idle_ticks = 0
+
         while True:
             while next_arrival_idx < len(ordered) and ordered[next_arrival_idx].timestamp <= tick_time:
                 pending_real.append(ordered[next_arrival_idx])
@@ -68,10 +81,7 @@ class AtomEventRunner:
                         if skip_ticks > 0:
                             tick_index += skip_ticks
                             tick_time += skip_ticks * tick_interval
-                            self.global_virtual_ticks_executed += skip_ticks
-                            
-                            bucket_bytes = getattr(protocol.backend, 'bucket_storage_bytes', block_size * 8) if hasattr(protocol, 'backend') else 0
-                            self.global_virtual_bytes_down += skip_ticks * bucket_bytes
+                            self.skipped_idle_ticks += skip_ticks
                             continue
 
             generated_virtual_tick = True
@@ -129,6 +139,8 @@ class AtomEventRunner:
                             break 
                     idle_ticks_after_last_arrival += 1
 
+                is_required_virtual = cooldown_ticks_remaining > 0
+
                 virtual_request = Request(
                     request_id=-(tick_index + 1),
                     kind=RequestKind.VIRTUAL,
@@ -141,26 +153,31 @@ class AtomEventRunner:
                 )
 
                 result = protocol.access(virtual_request)
-                
+
                 self.global_virtual_ticks_executed += 1
                 self.global_virtual_bytes_down += result.metrics.total_bytes_down
                 self.global_virtual_bytes_up += result.metrics.total_bytes_up
 
+                if is_required_virtual:
+                    self.required_virtual_ticks_executed += 1
+                    self.required_virtual_bytes_down += result.metrics.total_bytes_down
+                    self.required_virtual_bytes_up += result.metrics.total_bytes_up
+
                 if record_virtuals:
                     estimate = self.latency_model.annotate(result, queueing_delay=0.0)
-                    rows.append(
-                        self._make_row(
-                            protocol=protocol,
-                            record=None,
-                            result=result,
-                            estimate=estimate,
-                            tick_index=tick_index,
-                            tick_time=tick_time,
-                            service_kind="virtual",
-                            generated_virtual_tick=generated_virtual_tick,
-                            executed_virtual_access=True,
-                        )
+                    row = self._make_row(
+                        protocol=protocol,
+                        record=None,
+                        result=result,
+                        estimate=estimate,
+                        tick_index=tick_index,
+                        tick_time=tick_time,
+                        service_kind="virtual",
+                        generated_virtual_tick=generated_virtual_tick,
+                        executed_virtual_access=True,
                     )
+                    row["required_virtual_access"] = is_required_virtual
+                    rows.append(row)
 
                 if cooldown_ticks_remaining > 0:
                     cooldown_ticks_remaining -= 1

@@ -13,7 +13,8 @@ class StorageConfig:
     bucket_size: int = 8
     tree_height: int = 20
     use_file_backend: bool = False
-    data_dir: str = "data/tmp"
+    data_dir: str = "data"
+    data_file_size: int = 1 << 30
 
 
 @dataclass(slots=True)
@@ -31,8 +32,8 @@ class CryptoConfig:
 
 @dataclass(slots=True)
 class ServerIOConfig:
-    bucket_read_sec: float = 2e-3
-    bucket_write_sec: float = 2e-3
+    bucket_read_sec: float = 4e-3
+    bucket_write_sec: float = 4e-3
 
 
 @dataclass(slots=True)
@@ -43,7 +44,7 @@ class RingConfig:
 
 @dataclass(slots=True)
 class AtomConfig:
-    lambda1: float = 3.0
+    lambda1: float = 8.0
     tick_interval_sec: float = 0.001
     queue_limit: int = 100000
 
