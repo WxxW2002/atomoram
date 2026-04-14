@@ -66,7 +66,7 @@ class FileBucketStore(AbstractBucketStore):
 
         self.buckets_per_file = max(1, self.data_file_size // self.bucket_storage_bytes)
         self.total_tree_bytes = self.bucket_count * self.bucket_storage_bytes
-        self.total_files = math.ceil(self.total_tree_bytes / self.data_file_size)
+        self.total_files = math.ceil(self.bucket_count / self.buckets_per_file)
 
         self._prepare_sparse_files()
 
@@ -93,17 +93,29 @@ class FileBucketStore(AbstractBucketStore):
             f.seek(byte_offset)
             f.write(raw)
 
+    def _buckets_in_file(self, file_index: int) -> int:
+        if file_index < 0 or file_index >= self.total_files:
+            return 0
+        start_bucket = file_index * self.buckets_per_file
+        remaining = self.bucket_count - start_bucket
+        if remaining <= 0:
+            return 0
+        return min(self.buckets_per_file, remaining)
+
+
+    def _logical_size_for_file(self, file_index: int) -> int:
+        return self._buckets_in_file(file_index) * self.bucket_storage_bytes
+
     def _prepare_sparse_files(self) -> None:
         for file_index in range(self.total_files):
             file_path = self.tree_dir / f"tree_data_{file_index}.bin"
-            logical_size = min(
-                self.data_file_size,
-                self.total_tree_bytes - file_index * self.data_file_size,
-            )
+            logical_size = self._logical_size_for_file(file_index)
             if logical_size <= 0:
-                break
+                continue
+
             if file_path.exists() and file_path.stat().st_size == logical_size:
                 continue
+
             with file_path.open("wb") as f:
                 f.seek(logical_size - 1)
                 f.write(b"\0")

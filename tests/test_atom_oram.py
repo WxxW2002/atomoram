@@ -206,3 +206,101 @@ def test_atom_oram_missing_read_non_root_returns_none_and_flushes() -> None:
     assert result.metrics.offline_bucket_writes == 2
     assert result.metrics.offline_rtt == 2
     assert oram.pending_flush_count == 0
+
+def make_file_oram(tmp_path, seed: int = 7) -> AtomORAM:
+    storage = StorageConfig(
+        block_size=32,
+        bucket_size=4,
+        tree_height=4,
+        use_file_backend=True,
+        data_dir=str(tmp_path),
+        data_file_size=512,
+    )
+    atom = AtomConfig(
+        lambda1=1.0,
+        tick_interval_sec=0.001,
+        queue_limit=100000,
+    )
+    return AtomORAM(storage_config=storage, atom_config=atom, rng_seed=seed)
+
+
+def test_atom_oram_file_backend_matches_memory_backend(tmp_path) -> None:
+    mem_oram = make_oram(seed=7)
+    file_oram = make_file_oram(tmp_path, seed=7)
+
+    requests = []
+
+    # 先做一批写入，建立非平凡状态
+    for i in range(12):
+        requests.append(
+            Request(
+                request_id=1000 + i,
+                kind=RequestKind.REAL,
+                op=OperationType.WRITE,
+                address=BlockAddress(logical_id=i),
+                data=bytes([i + 1]) * (5 + (i % 7)),
+            )
+        )
+        for j in range(3):
+            requests.append(
+                Request(
+                    request_id=2000 + i * 10 + j,
+                    kind=RequestKind.VIRTUAL,
+                    op=OperationType.READ,
+                    address=None,
+                    data=None,
+                )
+            )
+
+    # 再混合读写
+    for i in range(20):
+        requests.append(
+            Request(
+                request_id=3000 + i,
+                kind=RequestKind.REAL,
+                op=OperationType.READ,
+                address=BlockAddress(logical_id=i % 12),
+                data=None,
+            )
+        )
+        requests.append(
+            Request(
+                request_id=4000 + i,
+                kind=RequestKind.REAL,
+                op=OperationType.WRITE,
+                address=BlockAddress(logical_id=(i * 3) % 12),
+                data=bytes([50 + i]) * (6 + (i % 5)),
+            )
+        )
+        for j in range(2):
+            requests.append(
+                Request(
+                    request_id=5000 + i * 10 + j,
+                    kind=RequestKind.VIRTUAL,
+                    op=OperationType.READ,
+                    address=None,
+                    data=None,
+                )
+            )
+
+    mem_stash_sizes = []
+    file_stash_sizes = []
+
+    for req in requests:
+        mem_res = mem_oram.access(req)
+        file_res = file_oram.access(req)
+
+        mem_stash_sizes.append(mem_res.metrics.stash_size_after)
+        file_stash_sizes.append(file_res.metrics.stash_size_after)
+
+        assert mem_res.metrics.online_bucket_reads == file_res.metrics.online_bucket_reads
+        assert mem_res.metrics.offline_bucket_reads == file_res.metrics.offline_bucket_reads
+        assert mem_res.metrics.offline_bucket_writes == file_res.metrics.offline_bucket_writes
+        assert mem_res.metrics.stash_size_after == file_res.metrics.stash_size_after
+
+    assert mem_stash_sizes == file_stash_sizes
+    assert sorted(mem_oram.stash.keys()) == sorted(file_oram.stash.keys())
+
+    mem_pos = [x for x in mem_oram.position_map[:12]]
+    file_pos = [x for x in file_oram.position_map[:12]]
+    assert mem_pos == file_pos

@@ -250,3 +250,91 @@ def test_file_backend_multi_real_blocks_round_trip(tmp_path):
     assert non_dummy[2].leaf == 6
     assert non_dummy[2].payload.startswith(b"C" * 7)
     assert non_dummy[2].metadata["logical_payload_size"] == 7
+
+def test_file_backend_two_buckets_same_file_do_not_overlap(tmp_path):
+    from pathlib import Path
+
+    from src.backend.tree_backend import TreeBackend
+    from src.common.config import StorageConfig
+    from src.common.types import Bucket, BucketAddress, DataBlock
+
+    cfg = StorageConfig(
+        block_size=16,
+        bucket_size=4,
+        tree_height=3,
+        use_file_backend=True,
+        data_dir=str(tmp_path),
+        data_file_size=4096,
+    )
+    backend = TreeBackend(config=cfg)
+
+    addr_a = BucketAddress(level=2, index=1)
+    addr_b = BucketAddress(level=2, index=2)
+
+    bucket_a = Bucket(
+        address=addr_a,
+        blocks=[
+            DataBlock(block_id=101, payload=b"A" * 4, is_dummy=False, leaf=4, metadata={}),
+            DataBlock(block_id=102, payload=b"B" * 5, is_dummy=False, leaf=5, metadata={}),
+        ],
+    )
+    bucket_b = Bucket(
+        address=addr_b,
+        blocks=[
+            DataBlock(block_id=201, payload=b"C" * 6, is_dummy=False, leaf=6, metadata={}),
+            DataBlock(block_id=202, payload=b"D" * 7, is_dummy=False, leaf=7, metadata={}),
+        ],
+    )
+
+    backend.write_bucket(bucket_a)
+    backend.write_bucket(bucket_b)
+
+    read_a = backend.read_bucket(addr_a)
+    read_b = backend.read_bucket(addr_b)
+
+    non_dummy_a = sorted(read_a.non_dummy_blocks(), key=lambda b: b.block_id)
+    non_dummy_b = sorted(read_b.non_dummy_blocks(), key=lambda b: b.block_id)
+
+    assert [b.block_id for b in non_dummy_a] == [101, 102]
+    assert [b.block_id for b in non_dummy_b] == [201, 202]
+
+    assert non_dummy_a[0].payload.startswith(b"A" * 4)
+    assert non_dummy_a[1].payload.startswith(b"B" * 5)
+    assert non_dummy_b[0].payload.startswith(b"C" * 6)
+    assert non_dummy_b[1].payload.startswith(b"D" * 7)
+
+def test_file_backend_last_file_last_bucket_round_trip(tmp_path):
+    from src.backend.tree_backend import TreeBackend
+    from src.common.config import StorageConfig
+    from src.common.types import Bucket, DataBlock
+
+    cfg = StorageConfig(
+        block_size=16,
+        bucket_size=4,
+        tree_height=3,
+        use_file_backend=True,
+        data_dir=str(tmp_path),
+        data_file_size=300,   # 故意设置很小，强制分多个文件
+    )
+    backend = TreeBackend(config=cfg)
+
+    last_flat = backend.bucket_count - 1
+    last_addr = backend.unflatten_index(last_flat)
+
+    bucket = Bucket(
+        address=last_addr,
+        blocks=[
+            DataBlock(block_id=301, payload=b"X" * 3, is_dummy=False, leaf=7, metadata={}),
+            DataBlock(block_id=302, payload=b"Y" * 8, is_dummy=False, leaf=6, metadata={}),
+        ],
+    )
+
+    backend.write_bucket(bucket)
+    read_back = backend.read_bucket(last_addr)
+    non_dummy = sorted(read_back.non_dummy_blocks(), key=lambda b: b.block_id)
+
+    assert len(non_dummy) == 2
+    assert non_dummy[0].block_id == 301
+    assert non_dummy[0].payload.startswith(b"X" * 3)
+    assert non_dummy[1].block_id == 302
+    assert non_dummy[1].payload.startswith(b"Y" * 8)

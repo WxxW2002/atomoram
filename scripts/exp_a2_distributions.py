@@ -19,7 +19,7 @@ def load_trace(file_path, limit=5000):
     df = pd.read_csv(file_path, nrows=limit)
     return [TraceRecord(trace_id=int(row['trace_id']), timestamp=float(row['timestamp']), op=OperationType.WRITE if row['op'] == 'W' else OperationType.READ, logical_id=int(row['logical_id']), size_bytes=int(row['size_bytes']), source='real_trace', original_index=int(row['trace_id']), original_offset=0, request_group=0) for _, row in df.iterrows()]
 
-def warmup_protocol(protocol, required_virtual_ticks, block_size, num_blocks=50000):
+def warmup_protocol(protocol, required_virtual_ticks, block_size, num_blocks=20000):
     for i in range(num_blocks):
         fill_byte = (i % 251) + 1
         protocol.access(
@@ -53,7 +53,7 @@ def run_a2():
     L = cfg.storage.tree_height
     lambda_1 = cfg.atom.lambda1
     block_size = cfg.storage.block_size
-    required_virtual_ticks = int(lambda_1 * L)
+    required_virtual_ticks = L
     traces = {
         "MSRC (Sparse)": "data/processed/msrc_src1_0_trace.csv",
         "AliCloud (Dense)": "data/processed/alicloud_device32_trace.csv",
@@ -72,7 +72,7 @@ def run_a2():
         )
         protocol = instantiate_protocol(AtomORAM, cfg, storage_cfg, rng_seed=0)
 
-        warmup_protocol(protocol, required_virtual_ticks, block_size, num_blocks=50000)
+        warmup_protocol(protocol, required_virtual_ticks, block_size, num_blocks=20000)
 
         runner = AtomEventRunner(latency_model=LatencyModel(config=cfg), atom_config=cfg.atom)
         df = runner.run(
