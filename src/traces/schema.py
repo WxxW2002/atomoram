@@ -59,6 +59,44 @@ def touched_block_ids(offset: int, size: int, block_size: int) -> list[int]:
     end_block = (offset + size - 1) // block_size
     return list(range(start_block, end_block + 1))
 
+def get_or_assign_logical_id(
+    logical_key_to_id: dict[tuple, int],
+    logical_key: tuple,
+) -> int:
+    logical_id = logical_key_to_id.get(logical_key)
+    if logical_id is None:
+        logical_id = len(logical_key_to_id)
+        logical_key_to_id[logical_key] = logical_id
+    return logical_id
+
+
+def make_single_request_record(
+    *,
+    trace_id: int,
+    timestamp: float,
+    op: OperationType,
+    logical_key_to_id: dict[tuple, int],
+    logical_key: tuple,
+    block_size: int,
+    source: str,
+    original_index: int,
+    original_offset: int,
+    metadata: dict | None = None,
+) -> TraceRecord:
+    logical_id = get_or_assign_logical_id(logical_key_to_id, logical_key)
+    return TraceRecord(
+        trace_id=trace_id,
+        timestamp=timestamp,
+        op=op,
+        logical_id=logical_id,
+        size_bytes=block_size,   # 统一固定为 4KB
+        source=source,
+        original_index=original_index,
+        original_offset=original_offset,
+        request_group=original_index,
+        subrequest_index=0,
+        metadata=metadata or {},
+    )
 
 def split_request_into_block_records(
     *,
@@ -134,6 +172,37 @@ def compact_trace_records(
 
     return compacted, mapping
 
+def make_single_request_record(
+    *,
+    trace_id: int,
+    timestamp: float,
+    op: OperationType,
+    logical_id: int,
+    block_size: int,
+    source: str,
+    original_index: int,
+    original_offset: int,
+    request_group: int,
+    metadata: dict[str, Any] | None = None,
+) -> TraceRecord:
+    if block_size <= 0:
+        raise ValueError("block_size must be positive.")
+    if logical_id < 0:
+        raise ValueError("logical_id must be non-negative.")
+
+    return TraceRecord(
+        trace_id=trace_id,
+        timestamp=timestamp,
+        op=op,
+        logical_id=logical_id,
+        size_bytes=block_size,
+        source=source,
+        original_index=original_index,
+        original_offset=original_offset,
+        request_group=request_group,
+        subrequest_index=0,
+        metadata=dict(metadata or {}),
+    )
 
 def records_to_dataframe(records: list[TraceRecord]) -> pd.DataFrame:
     rows = []

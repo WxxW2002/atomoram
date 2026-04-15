@@ -3,6 +3,7 @@ from pathlib import Path
 from src.common.types import OperationType
 from src.traces.alicloud import load_alicloud_trace
 from src.traces.msrc import load_msrc_trace
+from src.traces.google import load_google_trace
 from src.traces.synthetic import (
     generate_constant_interval_trace,
     generate_sparse_trace,
@@ -24,12 +25,14 @@ def test_load_msrc_trace_splits_and_compacts(tmp_path: Path) -> None:
 
     records = load_msrc_trace(csv_path, block_size=4096)
 
-    assert len(records) == 3
+    assert len(records) == 2
     assert records[0].timestamp == 0.0
     assert records[0].op == OperationType.READ
     assert records[1].timestamp == 1.0
     assert records[1].op == OperationType.WRITE
-    assert [r.logical_id for r in records] == [0, 1, 2]
+    assert [r.logical_id for r in records] == [0, 1]
+    assert all(r.size_bytes == 4096 for r in records)
+    assert records[1].metadata["raw_size_bytes"] == 8192
 
 
 def test_load_alicloud_trace_splits_and_normalizes_time(tmp_path: Path) -> None:
@@ -46,12 +49,13 @@ def test_load_alicloud_trace_splits_and_normalizes_time(tmp_path: Path) -> None:
 
     records = load_alicloud_trace(csv_path, block_size=4096)
 
-    assert len(records) == 3
+    assert len(records) == 2
     assert records[0].timestamp == 0.0
     assert records[1].timestamp == 2.0
-    assert records[2].timestamp == 2.0
     assert records[0].op == OperationType.READ
     assert records[1].op == OperationType.WRITE
+    assert all(r.size_bytes == 4096 for r in records)
+    assert records[1].metadata["raw_size_bytes"] == 8192
 
 
 def test_generate_constant_interval_trace() -> None:
@@ -96,3 +100,34 @@ def test_generate_two_burst_trace() -> None:
     assert abs(records[2].timestamp - 1.2) < 1e-12
     assert records[0].metadata["burst"] == 1
     assert records[2].metadata["burst"] == 2
+
+def test_load_google_trace_preserves_one_request_one_record(tmp_path: Path) -> None:
+    from src.traces.google import load_google_trace
+
+    csv_path = tmp_path / "google.csv"
+    csv_path.write_text(
+        "\n".join(
+            [
+                "filename,file_offset,application,c_time,io_zone,redundancy_type,op_type,service_class,from_flash_cache,cache_hit,request_io_size_bytes,disk_io_size_bytes,response_io_size_bytes,start_time,disk_time,simulated_disk_start_time,simulated_latency",
+                "fileA,0,appA,100,WARM,REPLICATED,READ,OTHER,0,1,1050624,0,0,10.0,0.0,0.0,0.001",
+                "fileA,4096,appA,100,WARM,REPLICATED,WRITE,OTHER,0,-1,8192,0,0,12.0,0.0,0.0,0.002",
+                "fileB,0,appB,200,COLD,ERASURE_CODED,READ,OTHER,0,0,4096,4096,4096,15.0,0.01,15.0,0.02",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    records = load_google_trace(csv_path, block_size=4096)
+
+    assert len(records) == 3
+    assert records[0].timestamp == 0.0
+    assert records[1].timestamp == 2.0
+    assert records[2].timestamp == 5.0
+
+    assert records[0].op == OperationType.READ
+    assert records[1].op == OperationType.WRITE
+    assert records[2].op == OperationType.READ
+
+    assert all(r.size_bytes == 4096 for r in records)
+    assert records[0].metadata["raw_size_bytes"] == 1050624
+    assert records[1].metadata["raw_size_bytes"] == 8192

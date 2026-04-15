@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from src.common.config import ExperimentConfig
+from src.common.exp_utils import estimate_atom_virtual_access_time
 
 os.makedirs('artifacts/figs', exist_ok=True)
 os.makedirs('artifacts/csv', exist_ok=True)
@@ -12,15 +13,16 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42
 def run_e1():
     cfg = ExperimentConfig.load_default()
     L = cfg.storage.tree_height
-    t_virt = cfg.atom.tick_interval_sec
+    t_virt = estimate_atom_virtual_access_time(cfg, samples=128, rng_seed=0)
     lambda_1 = cfg.atom.lambda1
     
     base_cost = L * t_virt
 
     fig, ax = plt.subplots(figsize=(8, 5))
     
-    for file_path, label in [('data/processed/msrc_src1_0_trace.csv', 'MSRC (Sparse)'), 
-                             ('data/processed/alicloud_device32_trace.csv', 'AliCloud (Dense)')]:
+    for file_path, label in [('data/processed/msrc_src1_0_trace.csv', 'MSRC'), 
+                             ('data/processed/alicloud_device32_trace.csv', 'AliCloud'),
+                             ('data/processed/google_cluster2_20240118_trace.csv', 'Google')]:
         df = pd.read_csv(file_path)
         df['dt_real'] = df['timestamp'].diff().fillna(0)
         df['slack'] = df['dt_real'] / base_cost
@@ -29,12 +31,11 @@ def run_e1():
         yvals = np.arange(len(sorted_data)) / float(len(sorted_data) - 1)
         
         out_df = pd.DataFrame({'Slack_Alpha': sorted_data, 'CDF': yvals})
-        out_df.to_csv(f"artifacts/csv/E1_{label[:4]}_CDF.csv", index=False)
+        out_df.to_csv(f"artifacts/csv/E1_{label}_CDF.csv", index=False)
         
         ax.plot(sorted_data, yvals, label=label, linewidth=2)
 
     ax.set_xscale('symlog', linthresh=0.1)
-    ax.axvline(x=1.0, color='r', linestyle='--', label=r'$\lambda_1 = 1.0$')
     ax.axvline(x=lambda_1, color='orange', linestyle=':', label=rf'$\lambda_1 = {lambda_1}$ (target)')
 
     ax.set_xlim(-0.01, 10000)

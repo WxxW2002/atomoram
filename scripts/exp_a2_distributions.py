@@ -59,8 +59,9 @@ def run_a2():
     required_virtual_ticks = int(lambda_1 * L)
 
     traces = {
-        "MSRC (Sparse)": "data/processed/msrc_src1_0_trace.csv",
-        "AliCloud (Dense)": "data/processed/alicloud_device32_trace.csv",
+        "MSRC": "data/processed/msrc_src1_0_trace.csv",
+        "AliCloud": "data/processed/alicloud_device32_trace.csv",
+        "Google": "data/processed/google_cluster2_20240118_trace.csv",
     }
 
     stash_data, queue_data = {}, {}
@@ -91,11 +92,16 @@ def run_a2():
         stash_data[name] = np.sort(df["stash_size_after"].values)
         queue_data[name] = np.sort(df["queue_length_after"].values)
         yvals = np.arange(len(stash_data[name])) / float(len(stash_data[name]) - 1)
+        slug_map = {
+            "MSRC": "msrc",
+            "AliCloud": "alicloud",
+            "Google": "google",
+        }
         pd.DataFrame({
             "Stash_Size": stash_data[name],
             "Queue_Length": queue_data[name],
             "CDF": yvals,
-        }).to_csv(f"artifacts/csv/A2_{name[:4]}_Distribution.csv", index=False)
+        }).to_csv(f"artifacts/csv/A2_{slug_map[name]}_Distribution.csv", index=False)
 
     for data_dict, xlabel, is_log, out_name in [
         (stash_data, "Stash Size (Blocks)", False, "FigA2_Stash_Distribution.pdf"),
@@ -103,10 +109,11 @@ def run_a2():
     ]:
         fig, ax = plt.subplots(figsize=(7, 5))
         style_map = {
-            "MSRC (Sparse)": {"linestyle": "--", "zorder": 3, "alpha": 1.0},
-            "AliCloud (Dense)": {"linestyle": "-", "zorder": 2, "alpha": 0.85},
+            "MSRC": {"linestyle": "--", "zorder": 3, "alpha": 1.0},
+            "AliCloud": {"linestyle": "-", "zorder": 2, "alpha": 0.85},
+            "Google": {"linestyle": "-.", "zorder": 4, "alpha": 0.95},
         }
-        plot_order = ["MSRC (Sparse)", "AliCloud (Dense)"]
+        plot_order = ["MSRC", "AliCloud", "Google"]
 
         max_x = 0
         for name in plot_order:

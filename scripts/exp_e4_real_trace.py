@@ -57,8 +57,9 @@ def run_e4():
     required_virtual_ticks = int(lambda_1 * L)
 
     traces = {
-        "MSRC (Sparse)": "data/processed/msrc_src1_0_trace.csv",
-        "AliCloud (Dense)": "data/processed/alicloud_device32_trace.csv",
+        "MSRC": "data/processed/msrc_src1_0_trace.csv",
+        "AliCloud": "data/processed/alicloud_device32_trace.csv",
+        "Google": "data/processed/google_cluster2_20240118_trace.csv",
     }
     latency_model = LatencyModel(config=cfg)
     plot_data = []
@@ -107,7 +108,7 @@ def run_e4():
     df_plot = pd.DataFrame(plot_data)
     df_plot.to_csv("artifacts/csv/E4_Real_Trace_Comparison.csv", index=False)
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
     traces_labels = df_plot["Trace"].unique()
     x = np.arange(len(traces_labels))
     width = 0.25

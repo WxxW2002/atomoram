@@ -53,8 +53,9 @@ def run_a1():
     required_virtual_ticks = int(lambda_1 * L)
 
     traces = {
-        "MSRC (Sparse)": "data/processed/msrc_src1_0_trace.csv",
-        "AliCloud (Dense)": "data/processed/alicloud_device32_trace.csv",
+        "MSRC": "data/processed/msrc_src1_0_trace.csv",
+        "AliCloud": "data/processed/alicloud_device32_trace.csv",
+        "Google": "data/processed/google_cluster2_20240118_trace.csv",
     }
     plot_data = []
 

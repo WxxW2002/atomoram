@@ -8,8 +8,8 @@ import pandas as pd
 from src.traces.schema import (
     TraceRecord,
     compact_trace_records,
+    make_single_request_record,
     normalize_operation,
-    split_request_into_block_records,
 )
 
 ALICLOUD_COLUMNS = [
@@ -29,7 +29,7 @@ def load_alicloud_trace(
     block_size: int = 4096,
     max_rows: Optional[int] = None,
     compact_addresses: bool = True,
-    split_multi_block_requests: bool = True,
+    split_multi_block_requests: bool = False,
 ) -> list[TraceRecord]:
     csv_path = Path(path)
     df = pd.read_csv(
@@ -64,41 +64,25 @@ def load_alicloud_trace(
 
         metadata = {
             "device_id": row["DeviceID"],
+            "raw_size_bytes": size,
         }
 
-        if split_multi_block_requests:
-            pieces = split_request_into_block_records(
-                base_trace_id=next_trace_id,
+        logical_id = offset // block_size
+        records.append(
+            make_single_request_record(
+                trace_id=next_trace_id,
                 timestamp=timestamp_sec,
                 op=op,
-                offset=offset,
-                size=size,
+                logical_id=logical_id,
                 block_size=block_size,
                 source="alicloud",
                 original_index=row_idx,
+                original_offset=offset,
                 request_group=row_idx,
                 metadata=metadata,
             )
-            records.extend(pieces)
-            next_trace_id += len(pieces)
-        else:
-            logical_id = offset // block_size
-            records.append(
-                TraceRecord(
-                    trace_id=next_trace_id,
-                    timestamp=timestamp_sec,
-                    op=op,
-                    logical_id=logical_id,
-                    size_bytes=size,
-                    source="alicloud",
-                    original_index=row_idx,
-                    original_offset=offset,
-                    request_group=row_idx,
-                    subrequest_index=0,
-                    metadata=metadata,
-                )
-            )
-            next_trace_id += 1
+        )
+        next_trace_id += 1
 
     if compact_addresses:
         records, _ = compact_trace_records(records)
