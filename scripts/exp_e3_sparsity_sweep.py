@@ -8,7 +8,7 @@ from src.common.config import ExperimentConfig
 from src.common.latency_model import LatencyModel
 from src.traces.schema import TraceRecord
 from src.common.types import OperationType
-from src.common.exp_utils import estimate_atom_virtual_access_time, instantiate_protocol, prepare_storage_config
+from src.common.exp_utils import instantiate_protocol, prepare_storage_config
 
 os.makedirs('artifacts/figs', exist_ok=True)
 os.makedirs('artifacts/csv', exist_ok=True)
@@ -21,7 +21,7 @@ def generate_synthetic_trace(alpha, base_gap, block_size, num_reqs=800):
 def run_e3():
     cfg = ExperimentConfig.load_default()
     L = cfg.storage.tree_height
-    t_virt = estimate_atom_virtual_access_time(cfg, samples=128, rng_seed=0)
+    t_virt = cfg.atom.tick_interval_sec
     lambda_1 = cfg.atom.lambda1
     block_size = cfg.storage.block_size
 

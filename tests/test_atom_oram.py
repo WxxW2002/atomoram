@@ -51,7 +51,7 @@ def test_atom_oram_write_then_read_full_access() -> None:
     assert write_result.metrics.online_rtt == 1
     assert write_result.metrics.offline_bucket_reads == 1
     assert write_result.metrics.offline_bucket_writes == 2
-    assert write_result.metrics.offline_rtt == 2
+    assert write_result.metrics.offline_rtt == 1
     assert write_result.metrics.path_length_touched == 1
     assert oram.pending_flush_count == 0
     assert oram.position_map[3] == target_bucket
@@ -69,7 +69,7 @@ def test_atom_oram_write_then_read_full_access() -> None:
     assert read_result.metrics.online_bucket_reads == 1
     assert read_result.metrics.offline_bucket_reads == 1
     assert read_result.metrics.offline_bucket_writes == 2
-    assert read_result.metrics.offline_rtt == 2
+    assert read_result.metrics.offline_rtt == 1
     assert oram.pending_flush_count == 0
     assert oram.position_map[3] == target_bucket
     assert 3 not in oram.stash
@@ -114,7 +114,7 @@ def test_atom_oram_local_greedy_writeback_target_then_parent() -> None:
     assert result.metrics.online_bucket_reads == 1
     assert result.metrics.offline_bucket_reads == 1
     assert result.metrics.offline_bucket_writes == 2
-    assert result.metrics.offline_rtt == 2
+    assert result.metrics.offline_rtt == 1
 
     assert oram.position_map[1] == target_bucket
     assert oram.position_map[2] == parent_bucket
@@ -181,7 +181,7 @@ def test_atom_oram_virtual_access_non_root_executes_offline_flush() -> None:
     assert result.metrics.online_rtt == 1
     assert result.metrics.offline_bucket_reads == 1
     assert result.metrics.offline_bucket_writes == 2
-    assert result.metrics.offline_rtt == 2
+    assert result.metrics.offline_rtt == 1
     assert oram.pending_flush_count == 0
 
 
@@ -204,7 +204,7 @@ def test_atom_oram_missing_read_non_root_returns_none_and_flushes() -> None:
     assert result.metrics.online_bucket_reads == 1
     assert result.metrics.offline_bucket_reads == 1
     assert result.metrics.offline_bucket_writes == 2
-    assert result.metrics.offline_rtt == 2
+    assert result.metrics.offline_rtt == 1
     assert oram.pending_flush_count == 0
 
 def make_file_oram(tmp_path, seed: int = 7) -> AtomORAM:
@@ -304,3 +304,76 @@ def test_atom_oram_file_backend_matches_memory_backend(tmp_path) -> None:
     mem_pos = [x for x in mem_oram.position_map[:12]]
     file_pos = [x for x in file_oram.position_map[:12]]
     assert mem_pos == file_pos
+
+def test_atom_oram_local_top_half_online_read_has_no_network_cost() -> None:
+    storage = StorageConfig(
+        block_size=32,
+        bucket_size=4,
+        tree_height=4,
+        use_file_backend=False,
+        data_dir="data/tmp",
+    )
+    atom_cfg = AtomConfig(
+        lambda1=1.0,
+        tick_interval_sec=0.001,
+        queue_limit=100000,
+        local_top_half_enabled=True,
+        local_cutoff_level=None,
+    )
+    oram = AtomORAM(storage_config=storage, atom_config=atom_cfg, rng_seed=7)
+
+    # level=1 < tree_height//2=2 => local
+    oram.position_map[0] = BucketAddress(level=1, index=0)
+
+    req = Request(
+        request_id=1,
+        kind=RequestKind.REAL,
+        op=OperationType.WRITE,
+        address=BlockAddress(logical_id=0),
+        data=b"\x11" * storage.block_size,
+        arrival_time=0.0,
+        issued_time=0.0,
+        tag="test",
+    )
+    res = oram.access(req)
+
+    assert res.metrics.online_bucket_reads == 1
+    assert res.metrics.online_bytes_down == 0
+    assert res.metrics.online_rtt == 0
+
+
+def test_atom_oram_remote_lower_half_online_read_keeps_network_cost() -> None:
+    storage = StorageConfig(
+        block_size=32,
+        bucket_size=4,
+        tree_height=4,
+        use_file_backend=False,
+        data_dir="data/tmp",
+    )
+    atom_cfg = AtomConfig(
+        lambda1=1.0,
+        tick_interval_sec=0.001,
+        queue_limit=100000,
+        local_top_half_enabled=True,
+        local_cutoff_level=None,
+    )
+    oram = AtomORAM(storage_config=storage, atom_config=atom_cfg, rng_seed=7)
+
+    # level=3 >= tree_height//2=2 => remote
+    oram.position_map[0] = BucketAddress(level=3, index=0)
+
+    req = Request(
+        request_id=1,
+        kind=RequestKind.REAL,
+        op=OperationType.WRITE,
+        address=BlockAddress(logical_id=0),
+        data=b"\x22" * storage.block_size,
+        arrival_time=0.0,
+        issued_time=0.0,
+        tag="test",
+    )
+    res = oram.access(req)
+
+    assert res.metrics.online_bucket_reads == 1
+    assert res.metrics.online_bytes_down == oram.backend.bucket_storage_bytes
+    assert res.metrics.online_rtt == 1

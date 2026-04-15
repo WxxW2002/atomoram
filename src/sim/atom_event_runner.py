@@ -17,15 +17,21 @@ class AtomEventRunner:
     latency_model: LatencyModel
     atom_config: AtomConfig
 
-    # 所有实际执行过的 virtual accesses
     global_virtual_bytes_down: int = 0
     global_virtual_bytes_up: int = 0
     global_virtual_ticks_executed: int = 0
 
-    # 仅统计每个真实请求后“必须执行”的 mixing virtual accesses
     required_virtual_bytes_down: int = 0
     required_virtual_bytes_up: int = 0
     required_virtual_ticks_executed: int = 0
+
+    def _atom_real_tail_time(self) -> float:
+        cfg = self.latency_model.config
+        return (
+            2 * cfg.network.rtt_sec
+            + 2 * cfg.server_io.bucket_read_sec
+            + 2 * cfg.server_io.bucket_write_sec
+        )
 
     def run(
         self,
@@ -44,19 +50,27 @@ class AtomEventRunner:
         if record_virtuals is None:
             record_virtuals = len(ordered) <= 1500
 
+        tick_interval = self.atom_config.tick_interval_sec
+        if tick_interval <= 0:
+            raise ValueError("tick_interval_sec must be positive.")
+
         pending_real = deque()
         rows: list[dict[str, Any]] = []
 
         next_arrival_idx = 0
-        slot_index = 0
-        current_time = ordered[0].timestamp
-        cooldown_remaining = 0
+        tick_index = 0
+        tick_time = ordered[0].timestamp
+        cooldown_ticks_remaining = 0
+
+        next_real_release_time = ordered[0].timestamp
+
+        burst_tail_added = False
+
         idle_virtuals_after_last_arrival = 0
 
         self.global_virtual_bytes_down = 0
         self.global_virtual_bytes_up = 0
         self.global_virtual_ticks_executed = 0
-
         self.required_virtual_bytes_down = 0
         self.required_virtual_bytes_up = 0
         self.required_virtual_ticks_executed = 0
@@ -64,20 +78,20 @@ class AtomEventRunner:
         while True:
             while (
                 next_arrival_idx < len(ordered)
-                and ordered[next_arrival_idx].timestamp <= current_time
+                and ordered[next_arrival_idx].timestamp <= tick_time
             ):
                 pending_real.append(ordered[next_arrival_idx])
                 next_arrival_idx += 1
 
-            pending_flush_count = getattr(protocol, "pending_flush_count", 0)
+            if (
+                burst_tail_added
+                and not pending_real
+                and cooldown_ticks_remaining <= 0
+                and tick_time >= next_real_release_time
+            ):
+                burst_tail_added = False
 
-            should_run_real = (
-                len(pending_real) > 0
-                and cooldown_remaining <= 0
-                and pending_flush_count <= 0
-            )
-
-            if should_run_real:
+            if pending_real and cooldown_ticks_remaining <= 0 and tick_time >= next_real_release_time:
                 queue_length_before = len(pending_real)
                 record = pending_real.popleft()
                 queue_length_after = len(pending_real)
@@ -89,14 +103,14 @@ class AtomEventRunner:
                     address=BlockAddress(logical_id=record.logical_id),
                     data=self._make_write_payload(record, block_size),
                     arrival_time=record.timestamp,
-                    issued_time=current_time,
+                    issued_time=tick_time,
                     tag=record.source,
                 )
 
                 result = protocol.access(request)
-                result.timing.service_start_time = current_time
+                result.timing.service_start_time = tick_time
 
-                queueing_delay = current_time - record.timestamp
+                queueing_delay = tick_time - record.timestamp
                 if queueing_delay < 0:
                     raise ValueError("Negative queueing delay detected.")
 
@@ -123,102 +137,157 @@ class AtomEventRunner:
                         record=record,
                         result=result,
                         estimate=estimate,
-                        tick_index=slot_index,
-                        tick_time=current_time,
+                        tick_index=tick_index,
+                        tick_time=tick_time,
                         service_kind="real",
                         generated_virtual_tick=False,
                         executed_virtual_access=False,
                     )
                 )
 
-                service_time = estimate.online_latency - estimate.queueing_delay
-                if service_time < 0:
-                    raise ValueError("Negative online service time detected.")
+                cooldown_ticks_remaining = required_virtual_ticks
+                interval_part = required_virtual_ticks * tick_interval
+                tail = self._atom_real_tail_time()
 
-                current_time += service_time
-                slot_index += 1
+                if not burst_tail_added:
+                    next_real_release_time = tick_time + interval_part + tail
+                    burst_tail_added = True
+                else:
+                    next_real_release_time = tick_time + interval_part
 
-                cooldown_remaining = required_virtual_ticks
                 idle_virtuals_after_last_arrival = 0
+                tick_index += 1
                 continue
 
-            need_virtual = (cooldown_remaining > 0) or (pending_flush_count > 0)
+            if cooldown_ticks_remaining > 0:
+                virtual_request = Request(
+                    request_id=-(tick_index + 1),
+                    kind=RequestKind.VIRTUAL,
+                    op=OperationType.READ,
+                    address=None,
+                    data=None,
+                    arrival_time=tick_time,
+                    issued_time=tick_time,
+                    tag="virtual_tick",
+                )
 
-            if not need_virtual:
-                if next_arrival_idx < len(ordered):
-                    next_arrival_time = ordered[next_arrival_idx].timestamp
-                    if current_time < next_arrival_time:
-                        current_time = next_arrival_time
-                    continue
+                result = protocol.access(virtual_request)
+                result.timing.service_start_time = tick_time
 
-                if idle_virtuals_after_last_arrival >= max_idle_ticks_after_last_arrival:
-                    break
+                result.metrics.queue_length_before = len(pending_real)
+                result.metrics.queue_length_after = len(pending_real)
+                result.metrics.fallback_flag = False
+                result.metrics.virtual_ticks_generated = 1
+                result.metrics.virtual_requests_executed = 1
+                result.metrics.real_requests_served = 0
 
-                idle_virtuals_after_last_arrival += 1
+                estimate = self.latency_model.annotate(result, queueing_delay=0.0)
 
-            is_required_virtual = cooldown_remaining > 0
+                if estimate.queueing_delay < 0:
+                    raise ValueError("Negative queueing delay in latency estimate.")
+                if estimate.online_latency < estimate.queueing_delay:
+                    raise ValueError("Online latency smaller than queueing delay.")
 
-            virtual_request = Request(
-                request_id=-(slot_index + 1),
-                kind=RequestKind.VIRTUAL,
-                op=OperationType.READ,
-                address=None,
-                data=None,
-                arrival_time=current_time,
-                issued_time=current_time,
-                tag="virtual_tick",
-            )
+                self.global_virtual_ticks_executed += 1
+                self.global_virtual_bytes_down += result.metrics.total_bytes_down
+                self.global_virtual_bytes_up += result.metrics.total_bytes_up
 
-            result = protocol.access(virtual_request)
-            result.timing.service_start_time = current_time
-
-            result.metrics.queue_length_before = len(pending_real)
-            result.metrics.queue_length_after = len(pending_real)
-            result.metrics.fallback_flag = False
-            result.metrics.virtual_ticks_generated = 1
-            result.metrics.virtual_requests_executed = 1
-            result.metrics.real_requests_served = 0
-
-            estimate = self.latency_model.annotate(result, queueing_delay=0.0)
-
-            if estimate.queueing_delay < 0:
-                raise ValueError("Negative queueing delay in latency estimate.")
-            if estimate.online_latency < estimate.queueing_delay:
-                raise ValueError("Online latency smaller than queueing delay.")
-
-            self.global_virtual_ticks_executed += 1
-            self.global_virtual_bytes_down += result.metrics.total_bytes_down
-            self.global_virtual_bytes_up += result.metrics.total_bytes_up
-
-            if is_required_virtual:
                 self.required_virtual_ticks_executed += 1
                 self.required_virtual_bytes_down += result.metrics.total_bytes_down
                 self.required_virtual_bytes_up += result.metrics.total_bytes_up
 
-            if record_virtuals:
-                row = self._make_row(
-                    protocol=protocol,
-                    record=None,
-                    result=result,
-                    estimate=estimate,
-                    tick_index=slot_index,
-                    tick_time=current_time,
-                    service_kind="virtual",
-                    generated_virtual_tick=True,
-                    executed_virtual_access=True,
+                if record_virtuals:
+                    row = self._make_row(
+                        protocol=protocol,
+                        record=None,
+                        result=result,
+                        estimate=estimate,
+                        tick_index=tick_index,
+                        tick_time=tick_time,
+                        service_kind="virtual",
+                        generated_virtual_tick=True,
+                        executed_virtual_access=True,
+                    )
+                    row["required_virtual_access"] = True
+                    rows.append(row)
+
+                cooldown_ticks_remaining -= 1
+                tick_index += 1
+                tick_time += tick_interval
+                continue
+
+            if pending_real and tick_time < next_real_release_time:
+                tick_time = next_real_release_time
+                continue
+
+            if next_arrival_idx < len(ordered):
+                next_arrival_time = ordered[next_arrival_idx].timestamp
+                if tick_time < next_arrival_time:
+                    if burst_tail_added and next_real_release_time <= next_arrival_time:
+                        burst_tail_added = False
+                    tick_time = next_arrival_time
+                    continue
+
+            if next_arrival_idx >= len(ordered) and not pending_real:
+                if burst_tail_added and tick_time >= next_real_release_time:
+                    burst_tail_added = False
+
+                if idle_virtuals_after_last_arrival >= max_idle_ticks_after_last_arrival:
+                    break
+
+                virtual_request = Request(
+                    request_id=-(tick_index + 1),
+                    kind=RequestKind.VIRTUAL,
+                    op=OperationType.READ,
+                    address=None,
+                    data=None,
+                    arrival_time=tick_time,
+                    issued_time=tick_time,
+                    tag="virtual_tick",
                 )
-                row["required_virtual_access"] = is_required_virtual
-                rows.append(row)
 
-            service_time = estimate.online_latency - estimate.queueing_delay
-            if service_time < 0:
-                raise ValueError("Negative online service time detected.")
+                result = protocol.access(virtual_request)
+                result.timing.service_start_time = tick_time
 
-            current_time += service_time
-            slot_index += 1
+                result.metrics.queue_length_before = 0
+                result.metrics.queue_length_after = 0
+                result.metrics.fallback_flag = False
+                result.metrics.virtual_ticks_generated = 1
+                result.metrics.virtual_requests_executed = 1
+                result.metrics.real_requests_served = 0
 
-            if cooldown_remaining > 0:
-                cooldown_remaining -= 1
+                estimate = self.latency_model.annotate(result, queueing_delay=0.0)
+
+                if estimate.queueing_delay < 0:
+                    raise ValueError("Negative queueing delay in latency estimate.")
+                if estimate.online_latency < estimate.queueing_delay:
+                    raise ValueError("Online latency smaller than queueing delay.")
+
+                self.global_virtual_ticks_executed += 1
+                self.global_virtual_bytes_down += result.metrics.total_bytes_down
+                self.global_virtual_bytes_up += result.metrics.total_bytes_up
+
+                if record_virtuals:
+                    row = self._make_row(
+                        protocol=protocol,
+                        record=None,
+                        result=result,
+                        estimate=estimate,
+                        tick_index=tick_index,
+                        tick_time=tick_time,
+                        service_kind="virtual",
+                        generated_virtual_tick=True,
+                        executed_virtual_access=True,
+                    )
+                    row["required_virtual_access"] = False
+                    rows.append(row)
+
+                idle_virtuals_after_last_arrival += 1
+                tick_index += 1
+                tick_time += tick_interval
+                continue
+
+            break
 
         return pd.DataFrame(rows)
 
@@ -226,9 +295,7 @@ class AtomEventRunner:
     def _make_write_payload(record: TraceRecord, block_size: int) -> Optional[bytes]:
         if record.op != OperationType.WRITE:
             return None
-        payload_len = min(max(record.size_bytes, 1), block_size)
-        fill_byte = record.logical_id % 251
-        return bytes([fill_byte]) * payload_len
+        return bytes([record.logical_id % 251]) * block_size
 
     @staticmethod
     def _make_row(
@@ -263,14 +330,14 @@ class AtomEventRunner:
             op = record.op.value
 
         return {
-            "tick_index": tick_index,   # 兼容旧字段名；现在表示串行 access slot index
-            "tick_time": tick_time,     # 兼容旧字段名；现在表示该 access 的实际开始时间
+            "tick_index": tick_index,
+            "tick_time": tick_time,
             "service_kind": service_kind,
             "generated_virtual_tick": generated_virtual_tick,
             "executed_virtual_access": executed_virtual_access,
             "trace_id": trace_id,
             "arrival_time": arrival_time,
-            "service_start_time": tick_time,
+            "service_start_time": result.timing.service_start_time,
             "response_time": result.timing.response_time,
             "end_to_end_latency": result.timing.end_to_end_latency,
             "online_latency": estimate.online_latency,

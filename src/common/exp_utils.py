@@ -73,39 +73,3 @@ def instantiate_protocol(
         return DirectStore(storage_cfg)
 
     raise TypeError(f"Unsupported protocol class: {protocol_cls}")
-
-def estimate_atom_virtual_access_time(
-    cfg: ExperimentConfig,
-    *,
-    samples: int = 128,
-    rng_seed: int = 0,
-) -> float:
-    probe_storage = replace(
-        cfg.storage,
-        use_file_backend=False,
-        data_dir="data/tmp_probe",
-    )
-    probe = AtomORAM(
-        probe_storage,
-        atom_config=cfg.atom,
-        rng_seed=rng_seed,
-    )
-    latency_model = LatencyModel(config=cfg)
-
-    total = 0.0
-    for i in range(samples):
-        req = Request(
-            request_id=-(i + 1),
-            kind=RequestKind.VIRTUAL,
-            op=OperationType.READ,
-            address=None,
-            data=None,
-            arrival_time=0.0,
-            issued_time=0.0,
-            tag="virtual_probe",
-        )
-        res = probe.access(req)
-        est = latency_model.annotate(res, queueing_delay=0.0)
-        total += est.online_latency
-
-    return total / max(samples, 1)

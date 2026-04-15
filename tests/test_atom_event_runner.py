@@ -26,6 +26,8 @@ def make_env(tick_interval_sec: float = 1.0):
         lambda1=1.0,
         tick_interval_sec=tick_interval_sec,
         queue_limit=100000,
+        # runner 测试只看调度与延迟公式，不让 local-top-half 影响 online_rtt 断言
+        local_top_half_enabled=False,
     )
     exp_cfg = ExperimentConfig(
         storage=storage,
@@ -77,7 +79,7 @@ def test_atom_event_runner_inserts_required_virtual_accesses_between_reals() -> 
     assert bool(df.loc[2, "executed_virtual_access"]) is True
 
 
-def test_atom_event_runner_queueing_and_fallback_under_serial_service() -> None:
+def test_atom_event_runner_queueing_and_fallback_under_interval_runner() -> None:
     protocol, runner, storage = make_env()
 
     records = generate_constant_interval_trace(
@@ -107,48 +109,6 @@ def test_atom_event_runner_queueing_and_fallback_under_serial_service() -> None:
     assert bool(real_df.loc[2, "fallback_flag"]) is True
 
 
-def test_atom_event_runner_is_independent_of_tick_interval_sec() -> None:
-    protocol_a, runner_a, storage_a = make_env(tick_interval_sec=1.0)
-    protocol_b, runner_b, storage_b = make_env(tick_interval_sec=0.0001)
-
-    records_a = generate_constant_interval_trace(
-        num_requests=5,
-        address_space=8,
-        interval_sec=0.005,
-        read_ratio=1.0,
-        seed=3,
-        request_size_bytes=storage_a.block_size,
-    )
-    records_b = generate_constant_interval_trace(
-        num_requests=5,
-        address_space=8,
-        interval_sec=0.005,
-        read_ratio=1.0,
-        seed=3,
-        request_size_bytes=storage_b.block_size,
-    )
-
-    df_a = runner_a.run(
-        protocol=protocol_a,
-        records=records_a,
-        block_size=storage_a.block_size,
-        required_virtual_ticks=2,
-        record_virtuals=False,
-    )
-    df_b = runner_b.run(
-        protocol=protocol_b,
-        records=records_b,
-        block_size=storage_b.block_size,
-        required_virtual_ticks=2,
-        record_virtuals=False,
-    )
-
-    real_a = df_a[df_a["service_kind"] == "real"]["end_to_end_latency"].tolist()
-    real_b = df_b[df_b["service_kind"] == "real"]["end_to_end_latency"].tolist()
-
-    assert real_a == pytest.approx(real_b, rel=1e-12, abs=1e-12)
-
-
 def test_atom_event_runner_keeps_atom_metrics_shape() -> None:
     protocol, runner, storage = make_env()
 
@@ -172,6 +132,7 @@ def test_atom_event_runner_keeps_atom_metrics_shape() -> None:
     assert row["protocol"] == "atom_oram"
     assert int(row["online_bucket_reads"]) == 1
     assert int(row["online_rtt"]) == 1
+
 
 def test_atom_event_runner_visible_latency_uses_online_only() -> None:
     protocol, runner, storage = make_env()
@@ -197,3 +158,98 @@ def test_atom_event_runner_visible_latency_uses_online_only() -> None:
     assert float(row["queueing_delay"]) == pytest.approx(0.0)
     assert float(row["end_to_end_latency"]) == pytest.approx(float(row["online_latency"]))
     assert float(row["total_latency"]) >= float(row["online_latency"])
+
+
+def test_atom_event_runner_real_without_queue_has_visible_latency_equal_online_latency() -> None:
+    protocol, runner, storage = make_env(tick_interval_sec=0.01)
+
+    records = generate_constant_interval_trace(
+        num_requests=1,
+        address_space=8,
+        interval_sec=1.0,
+        read_ratio=1.0,
+        seed=11,
+        request_size_bytes=storage.block_size,
+    )
+
+    df = runner.run(
+        protocol=protocol,
+        records=records,
+        block_size=storage.block_size,
+        required_virtual_ticks=2,
+        record_virtuals=False,
+    )
+
+    row = df[df["service_kind"] == "real"].iloc[0]
+    assert float(row["queueing_delay"]) == pytest.approx(0.0)
+    assert float(row["end_to_end_latency"]) == pytest.approx(float(row["online_latency"]))
+
+
+def test_atom_event_runner_second_real_queueing_matches_interval_plus_tail() -> None:
+    protocol, runner, storage = make_env(tick_interval_sec=0.01)
+
+    records = generate_constant_interval_trace(
+        num_requests=2,
+        address_space=8,
+        interval_sec=0.0,
+        read_ratio=1.0,
+        seed=12,
+        request_size_bytes=storage.block_size,
+    )
+
+    required_virtual_ticks = 3
+    df = runner.run(
+        protocol=protocol,
+        records=records,
+        block_size=storage.block_size,
+        required_virtual_ticks=required_virtual_ticks,
+        record_virtuals=True,
+    )
+
+    real_df = df[df["service_kind"] == "real"].reset_index(drop=True)
+    cfg = runner.latency_model.config
+    tail = (
+        2 * cfg.network.rtt_sec
+        + 2 * cfg.server_io.bucket_read_sec
+        + 2 * cfg.server_io.bucket_write_sec
+    )
+    interval_part = required_virtual_ticks * runner.atom_config.tick_interval_sec
+    expected = interval_part + tail
+
+    assert float(real_df.loc[0, "queueing_delay"]) == pytest.approx(0.0)
+    assert float(real_df.loc[1, "queueing_delay"]) == pytest.approx(expected)
+
+
+def test_atom_event_runner_burst_queueing_grows_with_correct_formula() -> None:
+    protocol, runner, storage = make_env(tick_interval_sec=0.01)
+
+    records = generate_constant_interval_trace(
+        num_requests=3,
+        address_space=8,
+        interval_sec=0.0,
+        read_ratio=1.0,
+        seed=13,
+        request_size_bytes=storage.block_size,
+    )
+
+    required_virtual_ticks = 2
+    df = runner.run(
+        protocol=protocol,
+        records=records,
+        block_size=storage.block_size,
+        required_virtual_ticks=required_virtual_ticks,
+        record_virtuals=True,
+    )
+
+    real_df = df[df["service_kind"] == "real"].reset_index(drop=True)
+    cfg = runner.latency_model.config
+    tail = (
+        2 * cfg.network.rtt_sec
+        + 2 * cfg.server_io.bucket_read_sec
+        + 2 * cfg.server_io.bucket_write_sec
+    )
+    interval_part = required_virtual_ticks * runner.atom_config.tick_interval_sec
+
+    assert float(real_df.loc[0, "queueing_delay"]) == pytest.approx(0.0)
+    assert float(real_df.loc[1, "queueing_delay"]) == pytest.approx(interval_part + tail)
+    assert float(real_df.loc[2, "queueing_delay"]) == pytest.approx(2 * interval_part + tail)

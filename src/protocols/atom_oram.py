@@ -77,6 +77,63 @@ class AtomORAM(AbstractORAM):
         self.invalidated_buckets.clear()
         self.pending_maintenance.clear()
 
+    def _local_cutoff_level(self) -> int:
+        if self.atom_config.local_cutoff_level is not None:
+            return self.atom_config.local_cutoff_level
+        return self.backend.tree_height // 2
+
+
+    def _is_local_bucket(self, address: BucketAddress) -> bool:
+        if not self.atom_config.local_top_half_enabled:
+            return False
+        return address.level < self._local_cutoff_level()
+
+
+    def _record_atom_bucket_read(
+        self,
+        metrics: AccessMetrics,
+        address: BucketAddress,
+        *,
+        online: bool,
+    ) -> None:
+        if self._is_local_bucket(address):
+            metrics.record_bucket_read(
+                online=online,
+                byte_count=0,
+                rtt_count=0,
+                dummy_blocks=0,
+            )
+        else:
+            metrics.record_bucket_read(
+                online=online,
+                byte_count=self.backend.bucket_storage_bytes,
+                rtt_count=1,
+                dummy_blocks=0,
+            )
+
+
+    def _record_atom_bucket_write(
+        self,
+        metrics: AccessMetrics,
+        address: BucketAddress,
+        *,
+        online: bool,
+    ) -> None:
+        if self._is_local_bucket(address):
+            metrics.record_bucket_write(
+                online=online,
+                byte_count=0,
+                rtt_count=0,
+                dummy_blocks=0,
+            )
+        else:
+            metrics.record_bucket_write(
+                online=online,
+                byte_count=self.backend.bucket_storage_bytes,
+                rtt_count=0,
+                dummy_blocks=0,
+            )
+
     def access(self, request: Request) -> AccessResult:
         metrics = AccessMetrics(protocol=ProtocolKind.ATOM.value)
         timing = TimingRecord(
@@ -149,7 +206,6 @@ class AtomORAM(AbstractORAM):
 
         maintenance_executed = self._run_one_pending_maintenance(metrics=metrics)
 
-        metrics.online_rtt = 1
         metrics.path_length_touched = 1
         metrics.stash_size_after = len(self.stash)
 
@@ -202,11 +258,10 @@ class AtomORAM(AbstractORAM):
     ) -> None:
         bucket = self.backend.read_bucket(target_bucket)
 
-        metrics.record_bucket_read(
+        self._record_atom_bucket_read(
+            metrics,
+            target_bucket,
             online=True,
-            byte_count=self.backend.bucket_storage_bytes,
-            rtt_count=1,
-            dummy_blocks=bucket.dummy_count(),
         )
 
         bucket_key = self._bucket_key(target_bucket)
@@ -265,13 +320,11 @@ class AtomORAM(AbstractORAM):
         parent_key = self._bucket_key(parent_bucket)
         target_key = self._bucket_key(target_bucket)
 
-        # Read parent bucket as the offline maintenance input.
         parent_contents = self.backend.read_bucket(parent_bucket)
-        metrics.record_bucket_read(
+        self._record_atom_bucket_read(
+            metrics,
+            parent_bucket,
             online=False,
-            byte_count=self.backend.bucket_storage_bytes,
-            rtt_count=1,
-            dummy_blocks=parent_contents.dummy_count(),
         )
 
         if parent_key not in self.invalidated_buckets:
@@ -291,13 +344,11 @@ class AtomORAM(AbstractORAM):
             address=target_bucket,
             blocks=target_blocks,
             metrics=metrics,
-            rtt_count=1,
         )
         self._write_bucket_from_blocks(
             address=parent_bucket,
             blocks=parent_blocks,
             metrics=metrics,
-            rtt_count=0,
         )
 
         self.invalidated_buckets.discard(target_key)
@@ -328,17 +379,15 @@ class AtomORAM(AbstractORAM):
         address: BucketAddress,
         blocks: list[DataBlock],
         metrics: AccessMetrics,
-        rtt_count: int,
     ) -> None:
         bucket = Bucket(address=address, blocks=[block.clone() for block in blocks])
         normalized_bucket = self.backend.normalize_bucket(bucket)
         self.backend.write_bucket(normalized_bucket)
 
-        metrics.record_bucket_write(
+        self._record_atom_bucket_write(
+            metrics,
+            address,
             online=False,
-            byte_count=self.backend.bucket_storage_bytes,
-            rtt_count=rtt_count,
-            dummy_blocks=normalized_bucket.dummy_count(),
         )
 
     @staticmethod

@@ -47,6 +47,8 @@ class AtomConfig:
     lambda1: float = 1.0
     tick_interval_sec: float = 0.01
     queue_limit: int = 100000
+    local_top_half_enabled: bool = False
+    local_cutoff_level: int | None = None
 
 
 @dataclass(slots=True)

@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from src.common.config import ExperimentConfig
-from src.common.exp_utils import estimate_atom_virtual_access_time
 
 os.makedirs('artifacts/figs', exist_ok=True)
 os.makedirs('artifacts/csv', exist_ok=True)
@@ -13,7 +12,7 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42
 def run_e1():
     cfg = ExperimentConfig.load_default()
     L = cfg.storage.tree_height
-    t_virt = estimate_atom_virtual_access_time(cfg, samples=128, rng_seed=0)
+    t_virt = cfg.atom.tick_interval_sec
     lambda_1 = cfg.atom.lambda1
     
     base_cost = L * t_virt
