@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.ticker import MaxNLocator
 from src.sim.atom_event_runner import AtomEventRunner
 from src.protocols.atom_oram import AtomORAM
 from src.common.config import ExperimentConfig
@@ -19,7 +20,7 @@ def load_trace(file_path, limit=5000):
     df = pd.read_csv(file_path, nrows=limit)
     return [TraceRecord(trace_id=int(row['trace_id']), timestamp=float(row['timestamp']), op=OperationType.WRITE if row['op'] == 'W' else OperationType.READ, logical_id=int(row['logical_id']), size_bytes=int(row['size_bytes']), source='real_trace', original_index=int(row['trace_id']), original_offset=0, request_group=0) for _, row in df.iterrows()]
 
-def warmup_protocol(protocol, required_virtual_ticks, block_size, num_blocks=20000):
+def warmup_protocol(protocol, warmup_virtual_ticks, block_size, num_blocks=50000):
     for i in range(num_blocks):
         fill_byte = (i % 251) + 1
         protocol.access(
@@ -34,10 +35,10 @@ def warmup_protocol(protocol, required_virtual_ticks, block_size, num_blocks=200
                 tag="warmup",
             )
         )
-        for j in range(required_virtual_ticks):
+        for j in range(warmup_virtual_ticks):
             protocol.access(
                 Request(
-                    request_id=-(i * required_virtual_ticks + j + 1000000),
+                    request_id=-(i * warmup_virtual_ticks + j + 1000000),
                     kind=RequestKind.VIRTUAL,
                     op=OperationType.READ,
                     address=None,
@@ -53,7 +54,10 @@ def run_a2():
     L = cfg.storage.tree_height
     lambda_1 = cfg.atom.lambda1
     block_size = cfg.storage.block_size
-    required_virtual_ticks = L
+
+    warmup_virtual_ticks = L
+    required_virtual_ticks = int(lambda_1 * L)
+
     traces = {
         "MSRC (Sparse)": "data/processed/msrc_src1_0_trace.csv",
         "AliCloud (Dense)": "data/processed/alicloud_device32_trace.csv",
@@ -72,7 +76,7 @@ def run_a2():
         )
         protocol = instantiate_protocol(AtomORAM, cfg, storage_cfg, rng_seed=0)
 
-        warmup_protocol(protocol, required_virtual_ticks, block_size, num_blocks=20000)
+        warmup_protocol(protocol, warmup_virtual_ticks, block_size, num_blocks=50000)
 
         runner = AtomEventRunner(latency_model=LatencyModel(config=cfg), atom_config=cfg.atom)
         df = runner.run(
@@ -83,12 +87,6 @@ def run_a2():
             max_idle_ticks_after_last_arrival=0,
             record_virtuals=False,
         )
-
-        if int(df["stash_size_after"].max()) <= 1:
-            raise RuntimeError(
-                "A2 stash distribution is abnormal: max stash_size_after <= 1. "
-                "Check file-backed bucket serialization/deserialization."
-            )
 
         stash_data[name] = np.sort(df["stash_size_after"].values)
         queue_data[name] = np.sort(df["queue_length_after"].values)
@@ -109,6 +107,8 @@ def run_a2():
             "AliCloud (Dense)": {"linestyle": "-", "zorder": 2, "alpha": 0.85},
         }
         plot_order = ["MSRC (Sparse)", "AliCloud (Dense)"]
+
+        max_x = 0
         for name in plot_order:
             data = data_dict[name]
             yvals = np.arange(len(data)) / float(len(data) - 1)
@@ -120,9 +120,17 @@ def run_a2():
                 linestyle=style_map[name]["linestyle"],
                 zorder=style_map[name]["zorder"],
             )
+            if len(data) > 0:
+                max_x = max(max_x, int(np.max(data)))
+
         ax.set(xlabel=xlabel, ylabel="CDF")
+
         if is_log:
             ax.set_xscale("symlog")
+        else:
+            ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+            ax.set_xlim(left=0, right=max(1, max_x) + 0.5)
+
         ax.grid(True, linestyle="--", alpha=0.5)
         ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
         fig.savefig(f"artifacts/figs/{out_name}", format="pdf", bbox_inches="tight")

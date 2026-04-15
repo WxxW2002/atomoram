@@ -21,7 +21,7 @@ class StorageConfig:
 class NetworkConfig:
     down_bw_bytes_per_sec: float = 10 * 2**20
     up_bw_bytes_per_sec: float = 10 * 2**20
-    rtt_sec: float = 0.010
+    rtt_sec: float = 0.001
 
 
 @dataclass(slots=True)
@@ -44,8 +44,8 @@ class RingConfig:
 
 @dataclass(slots=True)
 class AtomConfig:
-    lambda1: float = 8.0
-    tick_interval_sec: float = 0.001
+    lambda1: float = 1.0
+    tick_interval_sec: float = 0.01
     queue_limit: int = 100000
 
 

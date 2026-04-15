@@ -8,6 +8,7 @@ from src.common.latency_model import LatencyModel
 from src.traces.schema import TraceRecord
 from src.common.types import OperationType
 from src.common.exp_utils import instantiate_protocol, prepare_storage_config
+from src.common.exp_utils import estimate_atom_virtual_access_time
 
 os.makedirs('artifacts/figs', exist_ok=True)
 os.makedirs('artifacts/csv', exist_ok=True)
@@ -31,7 +32,7 @@ def generate_burst_trace(t_virt, required_virtual_ticks, block_size):
 def run_e5():
     cfg = ExperimentConfig.load_default()
     L = cfg.storage.tree_height
-    t_virt = cfg.atom.tick_interval_sec
+    t_virt = estimate_atom_virtual_access_time(cfg, samples=128, rng_seed=0)
     lambda_1 = cfg.atom.lambda1
     block_size = cfg.storage.block_size
     required_virtual_ticks = int(lambda_1 * L)
@@ -59,7 +60,7 @@ def run_e5():
     real_df = df[df["service_kind"] == "real"][["arrival_time", "queue_length_after"]]
     real_df.to_csv("artifacts/csv/E5_Burst_Recovery.csv", index=False)
 
-    plt.figure(figsize=(8, 4))
+    plt.figure(figsize=(7, 4))
     plt.plot(real_df["arrival_time"], real_df["queue_length_after"], marker=".", linestyle="-", color="tab:blue", linewidth=2)
     plt.xlabel("Time (s)")
     plt.ylabel("Queue Length")

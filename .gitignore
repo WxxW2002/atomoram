@@ -4,4 +4,5 @@ __pycache__/
 .pytest_cache/
 data/processed/*.csv
 data/runtime/
+data/raw/Google
 artifacts/csv/E1_AliC_CDF.csv

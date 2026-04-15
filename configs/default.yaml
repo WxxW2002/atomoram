@@ -9,7 +9,7 @@ storage:
 network:
   down_bw_bytes_per_sec: 104857600
   up_bw_bytes_per_sec: 104857600
-  rtt_sec: 0.01
+  rtt_sec: 0.001
 
 crypto:
   enc_bytes_per_sec: 2000000000
@@ -24,6 +24,6 @@ ring:
   a_num: 8
 
 atom:
-  lambda1: 8.0
-  tick_interval_sec: 0.001
+  lambda1: 1.0
+  tick_interval_sec: 0.01
   queue_limit: 100000

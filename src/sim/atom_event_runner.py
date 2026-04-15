@@ -17,15 +17,15 @@ class AtomEventRunner:
     latency_model: LatencyModel
     atom_config: AtomConfig
 
+    # 所有实际执行过的 virtual accesses
     global_virtual_bytes_down: int = 0
     global_virtual_bytes_up: int = 0
     global_virtual_ticks_executed: int = 0
 
+    # 仅统计每个真实请求后“必须执行”的 mixing virtual accesses
     required_virtual_bytes_down: int = 0
     required_virtual_bytes_up: int = 0
     required_virtual_ticks_executed: int = 0
-
-    skipped_idle_ticks: int = 0
 
     def run(
         self,
@@ -35,7 +35,7 @@ class AtomEventRunner:
         block_size: int,
         required_virtual_ticks: int = 0,
         max_idle_ticks_after_last_arrival: int = 0,
-        record_virtuals: Optional[bool] = None, 
+        record_virtuals: Optional[bool] = None,
     ) -> pd.DataFrame:
         ordered = sorted(records, key=lambda r: (r.timestamp, r.trace_id))
         if not ordered:
@@ -48,15 +48,11 @@ class AtomEventRunner:
         rows: list[dict[str, Any]] = []
 
         next_arrival_idx = 0
-        tick_interval = self.atom_config.tick_interval_sec
-        if tick_interval <= 0:
-            raise ValueError("atom_config.tick_interval_sec must be positive.")
+        slot_index = 0
+        current_time = ordered[0].timestamp
+        cooldown_remaining = 0
+        idle_virtuals_after_last_arrival = 0
 
-        tick_index = 0
-        tick_time = ordered[0].timestamp
-        idle_ticks_after_last_arrival = 0
-        cooldown_ticks_remaining = 0  
-        
         self.global_virtual_bytes_down = 0
         self.global_virtual_bytes_up = 0
         self.global_virtual_ticks_executed = 0
@@ -65,28 +61,23 @@ class AtomEventRunner:
         self.required_virtual_bytes_up = 0
         self.required_virtual_ticks_executed = 0
 
-        self.skipped_idle_ticks = 0
-
         while True:
-            while next_arrival_idx < len(ordered) and ordered[next_arrival_idx].timestamp <= tick_time:
+            while (
+                next_arrival_idx < len(ordered)
+                and ordered[next_arrival_idx].timestamp <= current_time
+            ):
                 pending_real.append(ordered[next_arrival_idx])
                 next_arrival_idx += 1
 
             pending_flush_count = getattr(protocol, "pending_flush_count", 0)
-            if not pending_real and cooldown_ticks_remaining <= 0 and pending_flush_count == 0:
-                if next_arrival_idx < len(ordered):
-                    next_arr_time = ordered[next_arrival_idx].timestamp
-                    if next_arr_time > tick_time + tick_interval:
-                        skip_ticks = int((next_arr_time - tick_time) / tick_interval)
-                        if skip_ticks > 0:
-                            tick_index += skip_ticks
-                            tick_time += skip_ticks * tick_interval
-                            self.skipped_idle_ticks += skip_ticks
-                            continue
 
-            generated_virtual_tick = True
+            should_run_real = (
+                len(pending_real) > 0
+                and cooldown_remaining <= 0
+                and pending_flush_count <= 0
+            )
 
-            if pending_real and cooldown_ticks_remaining <= 0:
+            if should_run_real:
                 queue_length_before = len(pending_real)
                 record = pending_real.popleft()
                 queue_length_after = len(pending_real)
@@ -98,23 +89,33 @@ class AtomEventRunner:
                     address=BlockAddress(logical_id=record.logical_id),
                     data=self._make_write_payload(record, block_size),
                     arrival_time=record.timestamp,
-                    issued_time=tick_time,
+                    issued_time=current_time,
                     tag=record.source,
                 )
 
                 result = protocol.access(request)
-                result.timing.service_start_time = tick_time
+                result.timing.service_start_time = current_time
 
-                queueing_delay = tick_time - record.timestamp
+                queueing_delay = current_time - record.timestamp
                 if queueing_delay < 0:
                     raise ValueError("Negative queueing delay detected.")
 
                 result.metrics.queue_length_before = queue_length_before
                 result.metrics.queue_length_after = queue_length_after
                 result.metrics.fallback_flag = queueing_delay > 0
-                result.metrics.virtual_ticks_generated = 1 if generated_virtual_tick else 0
+                result.metrics.virtual_ticks_generated = 0
+                result.metrics.virtual_requests_executed = 0
+                result.metrics.real_requests_served = 1
 
-                estimate = self.latency_model.annotate(result, queueing_delay=queueing_delay)
+                estimate = self.latency_model.annotate(
+                    result,
+                    queueing_delay=queueing_delay,
+                )
+
+                if estimate.queueing_delay < 0:
+                    raise ValueError("Negative queueing delay in latency estimate.")
+                if estimate.online_latency < estimate.queueing_delay:
+                    raise ValueError("Online latency smaller than queueing delay.")
 
                 rows.append(
                     self._make_row(
@@ -122,68 +123,102 @@ class AtomEventRunner:
                         record=record,
                         result=result,
                         estimate=estimate,
-                        tick_index=tick_index,
-                        tick_time=tick_time,
+                        tick_index=slot_index,
+                        tick_time=current_time,
                         service_kind="real",
-                        generated_virtual_tick=generated_virtual_tick,
+                        generated_virtual_tick=False,
                         executed_virtual_access=False,
                     )
                 )
-                idle_ticks_after_last_arrival = 0
-                cooldown_ticks_remaining = required_virtual_ticks
 
-            else:
-                if next_arrival_idx >= len(ordered) and not pending_real:
-                    if idle_ticks_after_last_arrival >= max_idle_ticks_after_last_arrival:
-                        if getattr(protocol, "pending_flush_count", 0) == 0 and cooldown_ticks_remaining <= 0:
-                            break 
-                    idle_ticks_after_last_arrival += 1
+                service_time = estimate.online_latency - estimate.queueing_delay
+                if service_time < 0:
+                    raise ValueError("Negative online service time detected.")
 
-                is_required_virtual = cooldown_ticks_remaining > 0
+                current_time += service_time
+                slot_index += 1
 
-                virtual_request = Request(
-                    request_id=-(tick_index + 1),
-                    kind=RequestKind.VIRTUAL,
-                    op=OperationType.READ,
-                    address=None,
-                    data=None,
-                    arrival_time=tick_time,
-                    issued_time=tick_time,
-                    tag="virtual_tick",
+                cooldown_remaining = required_virtual_ticks
+                idle_virtuals_after_last_arrival = 0
+                continue
+
+            need_virtual = (cooldown_remaining > 0) or (pending_flush_count > 0)
+
+            if not need_virtual:
+                if next_arrival_idx < len(ordered):
+                    next_arrival_time = ordered[next_arrival_idx].timestamp
+                    if current_time < next_arrival_time:
+                        current_time = next_arrival_time
+                    continue
+
+                if idle_virtuals_after_last_arrival >= max_idle_ticks_after_last_arrival:
+                    break
+
+                idle_virtuals_after_last_arrival += 1
+
+            is_required_virtual = cooldown_remaining > 0
+
+            virtual_request = Request(
+                request_id=-(slot_index + 1),
+                kind=RequestKind.VIRTUAL,
+                op=OperationType.READ,
+                address=None,
+                data=None,
+                arrival_time=current_time,
+                issued_time=current_time,
+                tag="virtual_tick",
+            )
+
+            result = protocol.access(virtual_request)
+            result.timing.service_start_time = current_time
+
+            result.metrics.queue_length_before = len(pending_real)
+            result.metrics.queue_length_after = len(pending_real)
+            result.metrics.fallback_flag = False
+            result.metrics.virtual_ticks_generated = 1
+            result.metrics.virtual_requests_executed = 1
+            result.metrics.real_requests_served = 0
+
+            estimate = self.latency_model.annotate(result, queueing_delay=0.0)
+
+            if estimate.queueing_delay < 0:
+                raise ValueError("Negative queueing delay in latency estimate.")
+            if estimate.online_latency < estimate.queueing_delay:
+                raise ValueError("Online latency smaller than queueing delay.")
+
+            self.global_virtual_ticks_executed += 1
+            self.global_virtual_bytes_down += result.metrics.total_bytes_down
+            self.global_virtual_bytes_up += result.metrics.total_bytes_up
+
+            if is_required_virtual:
+                self.required_virtual_ticks_executed += 1
+                self.required_virtual_bytes_down += result.metrics.total_bytes_down
+                self.required_virtual_bytes_up += result.metrics.total_bytes_up
+
+            if record_virtuals:
+                row = self._make_row(
+                    protocol=protocol,
+                    record=None,
+                    result=result,
+                    estimate=estimate,
+                    tick_index=slot_index,
+                    tick_time=current_time,
+                    service_kind="virtual",
+                    generated_virtual_tick=True,
+                    executed_virtual_access=True,
                 )
+                row["required_virtual_access"] = is_required_virtual
+                rows.append(row)
 
-                result = protocol.access(virtual_request)
+            service_time = estimate.online_latency - estimate.queueing_delay
+            if service_time < 0:
+                raise ValueError("Negative online service time detected.")
 
-                self.global_virtual_ticks_executed += 1
-                self.global_virtual_bytes_down += result.metrics.total_bytes_down
-                self.global_virtual_bytes_up += result.metrics.total_bytes_up
+            current_time += service_time
+            slot_index += 1
 
-                if is_required_virtual:
-                    self.required_virtual_ticks_executed += 1
-                    self.required_virtual_bytes_down += result.metrics.total_bytes_down
-                    self.required_virtual_bytes_up += result.metrics.total_bytes_up
-
-                if record_virtuals:
-                    estimate = self.latency_model.annotate(result, queueing_delay=0.0)
-                    row = self._make_row(
-                        protocol=protocol,
-                        record=None,
-                        result=result,
-                        estimate=estimate,
-                        tick_index=tick_index,
-                        tick_time=tick_time,
-                        service_kind="virtual",
-                        generated_virtual_tick=generated_virtual_tick,
-                        executed_virtual_access=True,
-                    )
-                    row["required_virtual_access"] = is_required_virtual
-                    rows.append(row)
-
-                if cooldown_ticks_remaining > 0:
-                    cooldown_ticks_remaining -= 1
-
-            tick_index += 1
-            tick_time += tick_interval
+            if cooldown_remaining > 0:
+                cooldown_remaining -= 1
 
         return pd.DataFrame(rows)
 
@@ -228,8 +263,8 @@ class AtomEventRunner:
             op = record.op.value
 
         return {
-            "tick_index": tick_index,
-            "tick_time": tick_time,
+            "tick_index": tick_index,   # 兼容旧字段名；现在表示串行 access slot index
+            "tick_time": tick_time,     # 兼容旧字段名；现在表示该 access 的实际开始时间
             "service_kind": service_kind,
             "generated_virtual_tick": generated_virtual_tick,
             "executed_virtual_access": executed_virtual_access,
