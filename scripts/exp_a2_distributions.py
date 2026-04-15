@@ -139,7 +139,7 @@ def run_a2():
             ax.set_xlim(left=0, right=max(1, max_x) + 0.5)
 
         ax.grid(True, linestyle="--", alpha=0.5)
-        ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
+        ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
         fig.savefig(f"artifacts/figs/{out_name}", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':

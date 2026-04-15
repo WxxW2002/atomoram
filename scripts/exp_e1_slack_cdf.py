@@ -42,7 +42,7 @@ def run_e1():
     ax.set_xlabel(r'Sparse Slack $\alpha = \Delta t_{real} / (L \cdot t_{virt})$')
     ax.set_ylabel('CDF')
     
-    ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
+    ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=4, frameon=False)
     ax.grid(True, linestyle='--', alpha=0.5)
 
     plt.savefig('artifacts/figs/Fig1_Sparse_Slack_CDF.pdf', format='pdf', bbox_inches='tight')

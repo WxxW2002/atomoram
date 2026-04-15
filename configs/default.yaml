@@ -16,16 +16,16 @@ crypto:
   dec_bytes_per_sec: 2000000000
 
 server_io:
-  bucket_read_sec: 0.004
-  bucket_write_sec: 0.004
+  bucket_read_sec: 0.005
+  bucket_write_sec: 0.005
 
 ring:
   s_num: 12
   a_num: 8
 
 atom:
-  lambda1: 1.0
-  tick_interval_sec: 0.004
+  lambda1: 2.0
+  tick_interval_sec: 0.003
   queue_limit: 100000
   local_top_half_enabled: true
   local_cutoff_level:

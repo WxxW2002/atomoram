@@ -121,21 +121,21 @@ def run_e4():
         ax2.bar(x + (i - 1) * width, y_vals_p95, width, label=prot)
 
     ax1.set_ylabel("P5 End-to-End Latency (s)")
-    ax1.set_title("(a) P5 Latency Comparison")
     ax1.set_xticks(x)
     ax1.set_xticklabels(traces_labels)
+    ax1.set_xlabel("(a) P5 Latency Comparison", labelpad=15, fontsize=14) 
     ax1.grid(axis="y", linestyle="--", alpha=0.7)
     ax1.set_yscale("log")
 
     ax2.set_ylabel("P95 End-to-End Latency (s)")
-    ax2.set_title("(b) P95 Latency Comparison")
     ax2.set_xticks(x)
     ax2.set_xticklabels(traces_labels)
+    ax2.set_xlabel("(b) P95 Latency Comparison", labelpad=15, fontsize=14)
     ax2.grid(axis="y", linestyle="--", alpha=0.7)
     ax2.set_yscale("log")
 
-    lines, labels = ax1.get_legend_handles_labels()
-    fig.legend(lines, labels, loc="lower center", bbox_to_anchor=(0.5, 1.05), ncol=3, frameon=False)
+    ax1.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
+    ax2.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
 
     plt.tight_layout()
     plt.savefig("artifacts/figs/Fig4_Real_Trace_Comparison.pdf", format="pdf", bbox_inches="tight")
