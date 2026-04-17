@@ -18,6 +18,8 @@ plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42
 def measure_online_cost(protocol_class, L, is_atom=False):
     cfg = ExperimentConfig.load_default()
     cfg.storage.tree_height = L
+    cfg.atom.local_top_half_enabled = False
+    cfg.atom.local_cutoff_level = None
     latency_model = LatencyModel(config=cfg)
 
     if protocol_class.__name__ == "DirectStore":
@@ -46,7 +48,7 @@ def measure_online_cost(protocol_class, L, is_atom=False):
         protocol.access(req)
 
     io_touches, latencies = [], []
-    for _ in range(10):
+    for _ in range(100):
         res = protocol.access(req)
         est = latency_model.annotate(res, queueing_delay=0.0)
         touches = 1 if protocol_class.__name__ == "DirectStore" else (
