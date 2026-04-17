@@ -57,14 +57,14 @@ def run_e5():
     )
 
     real_df = df[df["service_kind"] == "real"][["arrival_time", "queue_length_after"]]
-    real_df.to_csv("artifacts/csv/E5_Burst_Recovery.csv", index=False)
+    real_df.to_csv("artifacts/csv/E5_burst_recovery.csv", index=False)
 
     plt.figure(figsize=(7, 4))
     plt.plot(real_df["arrival_time"], real_df["queue_length_after"], marker=".", linestyle="-", color="tab:blue", linewidth=2)
     plt.xlabel("Time (s)")
     plt.ylabel("Queue Length")
     plt.grid(True, linestyle="--", alpha=0.5)
-    plt.savefig("artifacts/figs/Fig5_Burst_Recovery.pdf", format="pdf", bbox_inches="tight")
+    plt.savefig("artifacts/figs/E5_burst_recovery.pdf", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':
     run_e5()

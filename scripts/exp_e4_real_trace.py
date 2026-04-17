@@ -59,7 +59,6 @@ def run_e4():
     traces = {
         "MSRC": "data/processed/msrc_src1_0_trace.csv",
         "AliCloud": "data/processed/alicloud_device32_trace.csv",
-        "Google": "data/processed/google_cluster2_20240118_trace.csv",
     }
     latency_model = LatencyModel(config=cfg)
     plot_data = []
@@ -106,7 +105,7 @@ def run_e4():
             })
 
     df_plot = pd.DataFrame(plot_data)
-    df_plot.to_csv("artifacts/csv/E4_Real_Trace_Comparison.csv", index=False)
+    df_plot.to_csv("artifacts/csv/E4_real_trace_comparison.csv", index=False)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
     traces_labels = df_plot["Trace"].unique()
@@ -138,7 +137,7 @@ def run_e4():
     ax2.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
 
     plt.tight_layout()
-    plt.savefig("artifacts/figs/Fig4_Real_Trace_Comparison.pdf", format="pdf", bbox_inches="tight")
+    plt.savefig("artifacts/figs/E4_real_trace_comparison.pdf", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':
     run_e4()

@@ -9,7 +9,7 @@ storage:
 network:
   down_bw_bytes_per_sec: 104857600
   up_bw_bytes_per_sec: 104857600
-  rtt_sec: 0.01
+  rtt_sec: 0.02
 
 crypto:
   enc_bytes_per_sec: 2000000000

@@ -21,7 +21,7 @@ class StorageConfig:
 class NetworkConfig:
     down_bw_bytes_per_sec: float = 10 * 2**20
     up_bw_bytes_per_sec: float = 10 * 2**20
-    rtt_sec: float = 0.001
+    rtt_sec: float = 0.02
 
 
 @dataclass(slots=True)
@@ -32,8 +32,8 @@ class CryptoConfig:
 
 @dataclass(slots=True)
 class ServerIOConfig:
-    bucket_read_sec: float = 4e-3
-    bucket_write_sec: float = 4e-3
+    bucket_read_sec: float = 5e-3
+    bucket_write_sec: float = 5e-3
 
 
 @dataclass(slots=True)
@@ -44,8 +44,8 @@ class RingConfig:
 
 @dataclass(slots=True)
 class AtomConfig:
-    lambda1: float = 1.0
-    tick_interval_sec: float = 0.01
+    lambda1: float = 2.0
+    tick_interval_sec: float = 0.003
     queue_limit: int = 100000
     local_top_half_enabled: bool = False
     local_cutoff_level: int | None = None

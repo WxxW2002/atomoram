@@ -11,7 +11,6 @@ from src.common.config import ExperimentConfig
 from src.common.utils import ensure_dir
 from src.traces.alicloud import load_alicloud_trace
 from src.traces.msrc import load_msrc_trace
-from src.traces.google import load_google_trace
 from src.traces.schema import records_to_dataframe
 
 
@@ -46,19 +45,6 @@ def main() -> None:
     alicloud_out = processed_dir / "alicloud_device32_trace.csv"
     alicloud_df.to_csv(alicloud_out, index=False)
     print(f"  saved {len(alicloud_df)} records to {alicloud_out}")
-
-    print("parsing Google ...")
-    google_records = load_google_trace(
-        google_path,
-        block_size=cfg.storage.block_size,
-        compact_addresses=True,
-        split_multi_block_requests=False,
-    )
-    google_df = records_to_dataframe(google_records)
-    google_out = processed_dir / "google_cluster2_20240118_trace.csv"
-    google_df.to_csv(google_out, index=False)
-    print(f"  saved {len(google_df)} records to {google_out}")
-
 
 if __name__ == "__main__":
     main()

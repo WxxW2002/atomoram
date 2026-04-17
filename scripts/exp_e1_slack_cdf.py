@@ -20,8 +20,7 @@ def run_e1():
     fig, ax = plt.subplots(figsize=(8, 5))
     
     for file_path, label in [('data/processed/msrc_src1_0_trace.csv', 'MSRC'), 
-                             ('data/processed/alicloud_device32_trace.csv', 'AliCloud'),
-                             ('data/processed/google_cluster2_20240118_trace.csv', 'Google')]:
+                             ('data/processed/alicloud_device32_trace.csv', 'AliCloud')]:
         df = pd.read_csv(file_path)
         df['dt_real'] = df['timestamp'].diff().fillna(0)
         df['slack'] = df['dt_real'] / base_cost
@@ -30,12 +29,13 @@ def run_e1():
         yvals = np.arange(len(sorted_data)) / float(len(sorted_data) - 1)
         
         out_df = pd.DataFrame({'Slack_Alpha': sorted_data, 'CDF': yvals})
-        out_df.to_csv(f"artifacts/csv/E1_{label}_CDF.csv", index=False)
+        out_df.to_csv(f"artifacts/csv/E1_{label}_cdf.csv", index=False)
         
         ax.plot(sorted_data, yvals, label=label, linewidth=2)
 
     ax.set_xscale('symlog', linthresh=0.1)
-    ax.axvline(x=lambda_1, color='orange', linestyle=':', label=rf'$\lambda_1 = {lambda_1}$ (target)')
+    ax.axvline(x=1, color='orange', linestyle=':', label=rf'$\lambda_1 = 1.0$')
+    ax.axvline(x=lambda_1, color='red', linestyle=':', label=rf'$\lambda_1 = {lambda_1}$ (target)')
 
     ax.set_xlim(-0.01, 10000)
     ax.set_ylim(0, 1.05)
@@ -45,7 +45,7 @@ def run_e1():
     ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=4, frameon=False)
     ax.grid(True, linestyle='--', alpha=0.5)
 
-    plt.savefig('artifacts/figs/Fig1_Sparse_Slack_CDF.pdf', format='pdf', bbox_inches='tight')
+    plt.savefig('artifacts/figs/E1_sparse_slack_cdf.pdf', format='pdf', bbox_inches='tight')
 
 if __name__ == '__main__':
     run_e1()

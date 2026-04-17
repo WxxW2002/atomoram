@@ -55,7 +55,6 @@ def run_a1():
     traces = {
         "MSRC": "data/processed/msrc_src1_0_trace.csv",
         "AliCloud": "data/processed/alicloud_device32_trace.csv",
-        "Google": "data/processed/google_cluster2_20240118_trace.csv",
     }
     plot_data = []
 
@@ -106,24 +105,27 @@ def run_a1():
             })
 
     df_plot = pd.DataFrame(plot_data)
-    df_plot.to_csv("artifacts/csv/A1_Bandwidth.csv", index=False)
+    df_plot.to_csv("artifacts/csv/A1_bandwidth.csv", index=False)
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    traces_labels = df_plot["Trace"].unique()
-    x = np.arange(len(traces_labels))
-    width = 0.25
+    df_single_trace = df_plot[df_plot["Trace"] == "MSRC"]
 
-    for i, prot in enumerate(df_plot["Protocol"].unique()):
-        y_vals = df_plot[df_plot["Protocol"] == prot]["Total_Bandwidth_MB"]
-        ax.bar(x + (i - 1) * width, y_vals, width, label=prot)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    protocols = df_single_trace["Protocol"].values
+    y_vals = df_single_trace["Total_Bandwidth_MB"].values
+    
+    x = np.arange(len(protocols))
+    width = 0.5
+
+    colors = ['C0', 'C1', 'C2']
+    ax.bar(x, y_vals, width, color=colors)
 
     ax.set_ylabel("Amortized Total Bandwidth (MB)")
     ax.set_xticks(x)
-    ax.set_xticklabels(traces_labels)
-    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
+    ax.set_xticklabels(protocols)
+    
     ax.grid(axis="y", linestyle="--", alpha=0.7)
     ax.set_yscale("log")
-    plt.savefig("artifacts/figs/FigA1_Bandwidth.pdf", format="pdf", bbox_inches="tight")
+    plt.savefig("artifacts/figs/A1_bandwidth.pdf", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':
     run_a1()

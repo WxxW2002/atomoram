@@ -88,7 +88,7 @@ def run_e2():
 
     fig.legend(lines, labels, loc='lower center', bbox_to_anchor=(0.5, 0.95), ncol=4, frameon=False)
     plt.tight_layout()
-    plt.savefig('artifacts/figs/Fig2_Mechanism_Validation.pdf', format='pdf', bbox_inches='tight')
+    plt.savefig('artifacts/figs/E2_mechanism_validation.pdf', format='pdf', bbox_inches='tight')
 
 if __name__ == '__main__':
     run_e2()

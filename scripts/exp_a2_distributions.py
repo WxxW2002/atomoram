@@ -61,7 +61,6 @@ def run_a2():
     traces = {
         "MSRC": "data/processed/msrc_src1_0_trace.csv",
         "AliCloud": "data/processed/alicloud_device32_trace.csv",
-        "Google": "data/processed/google_cluster2_20240118_trace.csv",
     }
 
     stash_data, queue_data = {}, {}
@@ -95,25 +94,23 @@ def run_a2():
         slug_map = {
             "MSRC": "msrc",
             "AliCloud": "alicloud",
-            "Google": "google",
         }
         pd.DataFrame({
             "Stash_Size": stash_data[name],
             "Queue_Length": queue_data[name],
             "CDF": yvals,
-        }).to_csv(f"artifacts/csv/A2_{slug_map[name]}_Distribution.csv", index=False)
+        }).to_csv(f"artifacts/csv/A2_{slug_map[name]}_distribution.csv", index=False)
 
     for data_dict, xlabel, is_log, out_name in [
-        (stash_data, "Stash Size (Blocks)", False, "FigA2_Stash_Distribution.pdf"),
-        (queue_data, "Queue Length", True, "FigA2_Queue_Distribution.pdf"),
+        (stash_data, "Stash Size (Blocks)", False, "stash_distribution.pdf"),
+        (queue_data, "Queue Length", True, "queue_distribution.pdf"),
     ]:
         fig, ax = plt.subplots(figsize=(7, 5))
         style_map = {
             "MSRC": {"linestyle": "--", "zorder": 3, "alpha": 1.0},
             "AliCloud": {"linestyle": "-", "zorder": 2, "alpha": 0.85},
-            "Google": {"linestyle": "-.", "zorder": 4, "alpha": 0.95},
         }
-        plot_order = ["MSRC", "AliCloud", "Google"]
+        plot_order = ["MSRC", "AliCloud"]
 
         max_x = 0
         for name in plot_order:
@@ -139,8 +136,8 @@ def run_a2():
             ax.set_xlim(left=0, right=max(1, max_x) + 0.5)
 
         ax.grid(True, linestyle="--", alpha=0.5)
-        ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
-        fig.savefig(f"artifacts/figs/{out_name}", format="pdf", bbox_inches="tight")
+        ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
+        fig.savefig(f"artifacts/figs/A2_{out_name}", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':
     run_a2()
