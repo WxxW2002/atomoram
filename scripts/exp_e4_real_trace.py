@@ -101,7 +101,7 @@ def run_e4():
                 "P5": np.percentile(lats, 5),
                 "P50": np.percentile(lats, 50),
                 "P95": np.percentile(lats, 95),
-                "P99": np.percentile(lats, 99),
+                "Mean": np.mean(lats),
             })
 
     df_plot = pd.DataFrame(plot_data)
