@@ -13,19 +13,50 @@ os.makedirs('artifacts/figs', exist_ok=True)
 os.makedirs('artifacts/csv', exist_ok=True)
 plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42, 'axes.linewidth': 1.2})
 
-def generate_burst_trace(t_virt, required_virtual_ticks, block_size):
+def generate_burst_trace(
+    t_virt,
+    required_virtual_ticks,
+    block_size,
+    burst_size=100,
+    num_bursts=3,
+    burst_gap_factor=0.1,
+    idle_margin_sec=0.5,
+    rtt_sec=0.02,
+    bucket_read_sec=0.005,
+    bucket_write_sec=0.005,
+):
     records = []
-    current_time, trace_id = 0.0, 0
+    current_time = 0.0
+    trace_id = 0
+
     base_gap = t_virt * required_virtual_ticks
-    burst_gap = base_gap * 0.1 
-    
-    for _ in range(100):
-        records.append(TraceRecord(trace_id=trace_id, timestamp=current_time, op=OperationType.READ, logical_id=trace_id%1000, size_bytes=block_size, source='b1', original_index=trace_id, original_offset=0, request_group=0))
-        current_time += burst_gap; trace_id += 1
-    current_time += base_gap * 100
-    for _ in range(100):
-        records.append(TraceRecord(trace_id=trace_id, timestamp=current_time, op=OperationType.READ, logical_id=trace_id%1000, size_bytes=block_size, source='b2', original_index=trace_id, original_offset=0, request_group=0))
-        current_time += burst_gap; trace_id += 1
+    burst_gap = base_gap * burst_gap_factor
+    tail = 2 * rtt_sec + 2 * bucket_read_sec + 2 * bucket_write_sec
+
+    recovery_gap = tail + max(0, burst_size - 1) * max(0.0, base_gap - burst_gap)
+    idle_gap = recovery_gap + idle_margin_sec
+
+    for burst_idx in range(num_bursts):
+        for _ in range(burst_size):
+            records.append(
+                TraceRecord(
+                    trace_id=trace_id,
+                    timestamp=current_time,
+                    op=OperationType.READ,
+                    logical_id=trace_id % 1000,
+                    size_bytes=block_size,
+                    source=f"b{burst_idx + 1}",
+                    original_index=trace_id,
+                    original_offset=0,
+                    request_group=burst_idx,
+                )
+            )
+            current_time += burst_gap
+            trace_id += 1
+
+        if burst_idx < num_bursts - 1:
+            current_time += idle_gap
+
     return records
 
 def run_e5():
@@ -36,7 +67,18 @@ def run_e5():
     block_size = cfg.storage.block_size
     required_virtual_ticks = int(lambda_1 * L)
 
-    records = generate_burst_trace(t_virt, required_virtual_ticks, block_size)
+    records = generate_burst_trace(
+        t_virt=t_virt,
+        required_virtual_ticks=required_virtual_ticks,
+        block_size=block_size,
+        burst_size=100,
+        num_bursts=3,
+        burst_gap_factor=0.25,
+        idle_margin_sec=0.25,
+        rtt_sec=cfg.network.rtt_sec,
+        bucket_read_sec=cfg.server_io.bucket_read_sec,
+        bucket_write_sec=cfg.server_io.bucket_write_sec,
+    )
 
     storage_cfg = prepare_storage_config(
         cfg.storage,
