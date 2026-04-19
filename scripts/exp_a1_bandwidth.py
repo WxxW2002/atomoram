@@ -125,6 +125,7 @@ def run_a1():
     
     ax.grid(axis="y", linestyle="--", alpha=0.7)
     ax.set_yscale("log")
+    ax.set_ylim(bottom=100)
     plt.savefig("artifacts/figs/A1_bandwidth.pdf", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':
