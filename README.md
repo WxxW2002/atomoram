@@ -98,7 +98,7 @@ The generated figure is saved in artifacts/figs/Fig1_Sparse_Slack_CDF.pdf, and t
 
 <details>
 <summary>Sample Figure 1 output</summary>
-<img src="artifacts/figs/Fig1_Sparse_Slack_CDF.png">
+<img src="artifacts/figs/E1_sparse_slack_cdf.png">
 </details>
 
 ---
@@ -114,7 +114,7 @@ The generated figure is saved in artifacts/figs/Fig2_Mechanism_Validation.pdf, a
 
 <details>
 <summary>Sample Figure 2 output</summary>
-<img src="artifacts/figs/Fig2_Mechanism_Validation.png">
+<img src="artifacts/figs/E2_mechanism_validation.png">
 </details>
 
 ---
@@ -130,7 +130,7 @@ The generated figure is saved in artifacts/figs/Fig3_Sparsity_Sweep.pdf, and the
 
 <details>
 <summary>Sample Figure 3 output</summary>
-<img src="artifacts/figs/Fig3_Sparsity_Sweep.png">
+<img src="artifacts/figs/E3_sparsity_sweep.png">
 </details>
 
 ---
@@ -146,7 +146,7 @@ The generated figure is saved in artifacts/figs/Fig4_Real_Trace_Comparison.pdf, 
 
 <details>
 <summary>Sample Figure 4 output</summary>
-<img src="artifacts/figs/Fig4_Real_Trace_Comparison.png">
+<img src="artifacts/figs/E4_real_trace_comparison.png">
 </details>  
 
 ---
@@ -162,7 +162,7 @@ The generated figure is saved in artifacts/figs/Fig5_Burst_Recovery.pdf, and the
 
 <details>
 <summary>Sample Figure 5 output</summary>
-<img src="artifacts/figs/Fig5_Burst_Recovery.png">
+<img src="artifacts/figs/E5_burst_recovery.png">
 </details>
 
 ---
@@ -177,7 +177,7 @@ The generated figure is saved in artifacts/figs/FigA1_Bandwidth.pdf, and the raw
 
 <details>
 <summary>Sample Figure A1 output</summary>
-<img src="artifacts/figs/FigA1_Bandwidth.png">
+<img src="artifacts/figs/A1_bandwidth.png">
 </details>
 
 #### Figure A2: Stash and Queue Empirical Distributions
@@ -191,12 +191,12 @@ The generated figures are saved in artifacts/figs/FigA2_Stash_Distribution.pdf a
 
 <details>
 <summary>Sample Figure A2 Stash output</summary>
-<img src="artifacts/figs/FigA2_Stash_Distribution.png">
+<img src="artifacts/figs/A2_stash_distribution.png">
 </details>
 
 <details>
 <summary>Sample Figure A2 Queue output</summary>
-<img src="artifacts/figs/FigA2_Queue_Distribution.png">
+<img src="artifacts/figs/A2_queue_distribution.png">
 </details>
 
 
