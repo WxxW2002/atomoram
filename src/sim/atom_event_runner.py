@@ -25,14 +25,6 @@ class AtomEventRunner:
     required_virtual_bytes_up: int = 0
     required_virtual_ticks_executed: int = 0
 
-    def _atom_real_tail_time(self) -> float:
-        cfg = self.latency_model.config
-        return (
-            2 * cfg.network.rtt_sec
-            + 2 * cfg.server_io.bucket_read_sec
-            + 2 * cfg.server_io.bucket_write_sec
-        )
-
     def run(
         self,
         *,
@@ -63,9 +55,7 @@ class AtomEventRunner:
         cooldown_ticks_remaining = 0
 
         next_real_release_time = ordered[0].timestamp
-
         burst_tail_added = False
-
         idle_virtuals_after_last_arrival = 0
 
         self.global_virtual_bytes_down = 0
@@ -147,10 +137,10 @@ class AtomEventRunner:
 
                 cooldown_ticks_remaining = required_virtual_ticks
                 interval_part = required_virtual_ticks * tick_interval
-                tail = self._atom_real_tail_time()
+                service_tail = estimate.total_latency - estimate.queueing_delay
 
                 if not burst_tail_added:
-                    next_real_release_time = tick_time + interval_part + tail
+                    next_real_release_time = tick_time + interval_part + service_tail
                     burst_tail_added = True
                 else:
                     next_real_release_time = tick_time + interval_part
@@ -361,6 +351,7 @@ class AtomEventRunner:
             "online_rtt": result.metrics.online_rtt,
             "offline_rtt": result.metrics.offline_rtt,
             "stash_size_before": result.metrics.stash_size_before,
+            "stash_peak_during_access": result.metrics.stash_peak_during_access,
             "stash_size_after": result.metrics.stash_size_after,
             "queue_length_before": result.metrics.queue_length_before,
             "queue_length_after": result.metrics.queue_length_after,

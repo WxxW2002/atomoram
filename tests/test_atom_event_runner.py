@@ -26,7 +26,6 @@ def make_env(tick_interval_sec: float = 1.0):
         lambda1=1.0,
         tick_interval_sec=tick_interval_sec,
         queue_limit=100000,
-        # runner 测试只看调度与延迟公式，不让 local-top-half 影响 online_rtt 断言
         local_top_half_enabled=False,
     )
     exp_cfg = ExperimentConfig(
@@ -131,7 +130,10 @@ def test_atom_event_runner_keeps_atom_metrics_shape() -> None:
     row = df.iloc[0]
     assert row["protocol"] == "atom_oram"
     assert int(row["online_bucket_reads"]) == 1
+    assert int(row["offline_bucket_reads"]) == 2
+    assert int(row["offline_bucket_writes"]) in {2, 3}
     assert int(row["online_rtt"]) == 1
+    assert int(row["offline_rtt"]) == 2
 
 
 def test_atom_event_runner_visible_latency_uses_online_only() -> None:
@@ -185,7 +187,7 @@ def test_atom_event_runner_real_without_queue_has_visible_latency_equal_online_l
     assert float(row["end_to_end_latency"]) == pytest.approx(float(row["online_latency"]))
 
 
-def test_atom_event_runner_second_real_queueing_matches_interval_plus_tail() -> None:
+def test_atom_event_runner_second_real_queueing_matches_interval_plus_first_real_service_tail() -> None:
     protocol, runner, storage = make_env(tick_interval_sec=0.01)
 
     records = generate_constant_interval_trace(
@@ -207,20 +209,15 @@ def test_atom_event_runner_second_real_queueing_matches_interval_plus_tail() -> 
     )
 
     real_df = df[df["service_kind"] == "real"].reset_index(drop=True)
-    cfg = runner.latency_model.config
-    tail = (
-        2 * cfg.network.rtt_sec
-        + 2 * cfg.server_io.bucket_read_sec
-        + 2 * cfg.server_io.bucket_write_sec
-    )
+    first_real_service_tail = float(real_df.loc[0, "total_latency"] - real_df.loc[0, "queueing_delay"])
     interval_part = required_virtual_ticks * runner.atom_config.tick_interval_sec
-    expected = interval_part + tail
+    expected = interval_part + first_real_service_tail
 
     assert float(real_df.loc[0, "queueing_delay"]) == pytest.approx(0.0)
     assert float(real_df.loc[1, "queueing_delay"]) == pytest.approx(expected)
 
 
-def test_atom_event_runner_burst_queueing_grows_with_correct_formula() -> None:
+def test_atom_event_runner_burst_queueing_grows_with_interval_and_single_tail() -> None:
     protocol, runner, storage = make_env(tick_interval_sec=0.01)
 
     records = generate_constant_interval_trace(
@@ -242,14 +239,9 @@ def test_atom_event_runner_burst_queueing_grows_with_correct_formula() -> None:
     )
 
     real_df = df[df["service_kind"] == "real"].reset_index(drop=True)
-    cfg = runner.latency_model.config
-    tail = (
-        2 * cfg.network.rtt_sec
-        + 2 * cfg.server_io.bucket_read_sec
-        + 2 * cfg.server_io.bucket_write_sec
-    )
+    first_real_service_tail = float(real_df.loc[0, "total_latency"] - real_df.loc[0, "queueing_delay"])
     interval_part = required_virtual_ticks * runner.atom_config.tick_interval_sec
 
     assert float(real_df.loc[0, "queueing_delay"]) == pytest.approx(0.0)
-    assert float(real_df.loc[1, "queueing_delay"]) == pytest.approx(interval_part + tail)
-    assert float(real_df.loc[2, "queueing_delay"]) == pytest.approx(2 * interval_part + tail)
+    assert float(real_df.loc[1, "queueing_delay"]) == pytest.approx(interval_part + first_real_service_tail)
+    assert float(real_df.loc[2, "queueing_delay"]) == pytest.approx(2 * interval_part + first_real_service_tail)

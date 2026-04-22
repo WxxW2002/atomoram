@@ -36,6 +36,7 @@ class AccessMetrics:
 
     # Local state
     stash_size_before: int = 0
+    stash_peak_during_access: int = 0
     stash_size_after: int = 0
 
     # Optional counters for debugging / appendix

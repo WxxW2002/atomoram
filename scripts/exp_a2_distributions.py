@@ -2,8 +2,8 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.ticker import MaxNLocator
+
 from src.sim.atom_event_runner import AtomEventRunner
 from src.protocols.atom_oram import AtomORAM
 from src.common.config import ExperimentConfig
@@ -12,13 +12,36 @@ from src.traces.schema import TraceRecord
 from src.common.types import OperationType, Request, RequestKind, BlockAddress
 from src.common.exp_utils import instantiate_protocol, prepare_storage_config
 
-os.makedirs('artifacts/figs', exist_ok=True)
-os.makedirs('artifacts/csv', exist_ok=True)
-plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42, 'axes.linewidth': 1.2})
+os.makedirs("artifacts/figs", exist_ok=True)
+os.makedirs("artifacts/csv", exist_ok=True)
+
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.size": 12,
+        "pdf.fonttype": 42,
+        "axes.linewidth": 1.2,
+    }
+)
+
 
 def load_trace(file_path, limit=5000):
     df = pd.read_csv(file_path, nrows=limit)
-    return [TraceRecord(trace_id=int(row['trace_id']), timestamp=float(row['timestamp']), op=OperationType.WRITE if row['op'] == 'W' else OperationType.READ, logical_id=int(row['logical_id']), size_bytes=int(row['size_bytes']), source='real_trace', original_index=int(row['trace_id']), original_offset=0, request_group=0) for _, row in df.iterrows()]
+    return [
+        TraceRecord(
+            trace_id=int(row["trace_id"]),
+            timestamp=float(row["timestamp"]),
+            op=OperationType.WRITE if row["op"] == "W" else OperationType.READ,
+            logical_id=int(row["logical_id"]),
+            size_bytes=int(row["size_bytes"]),
+            source="real_trace",
+            original_index=int(row["trace_id"]),
+            original_offset=0,
+            request_group=0,
+        )
+        for _, row in df.iterrows()
+    ]
+
 
 def warmup_protocol(protocol, warmup_virtual_ticks, block_size, num_blocks=50000):
     for i in range(num_blocks):
@@ -49,21 +72,34 @@ def warmup_protocol(protocol, warmup_virtual_ticks, block_size, num_blocks=50000
                 )
             )
 
+
+def _cdf_yvals(n: int) -> np.ndarray:
+    if n <= 1:
+        return np.zeros(n, dtype=float)
+    return np.arange(n) / float(n - 1)
+
+
 def run_a2():
     cfg = ExperimentConfig.load_default()
     L = cfg.storage.tree_height
     lambda_1 = cfg.atom.lambda1
     block_size = cfg.storage.block_size
 
-    warmup_virtual_ticks = L
     required_virtual_ticks = int(lambda_1 * L)
+    warmup_virtual_ticks = required_virtual_ticks
 
     traces = {
         "MSRC": "data/processed/msrc_src1_0_trace.csv",
         "AliCloud": "data/processed/alicloud_device32_trace.csv",
     }
 
-    stash_data, queue_data = {}, {}
+    stash_data = {}
+    queue_data = {}
+
+    slug_map = {
+        "MSRC": "msrc",
+        "AliCloud": "alicloud",
+    }
 
     for name, path in traces.items():
         records = load_trace(path, limit=5000)
@@ -76,34 +112,59 @@ def run_a2():
         )
         protocol = instantiate_protocol(AtomORAM, cfg, storage_cfg, rng_seed=0)
 
-        warmup_protocol(protocol, warmup_virtual_ticks, block_size, num_blocks=50000)
+        warmup_protocol(
+            protocol=protocol,
+            warmup_virtual_ticks=warmup_virtual_ticks,
+            block_size=block_size,
+            num_blocks=50000,
+        )
 
-        runner = AtomEventRunner(latency_model=LatencyModel(config=cfg), atom_config=cfg.atom)
+        runner = AtomEventRunner(
+            latency_model=LatencyModel(config=cfg),
+            atom_config=cfg.atom,
+        )
+
         df = runner.run(
             protocol=protocol,
             records=records,
             block_size=block_size,
             required_virtual_ticks=required_virtual_ticks,
             max_idle_ticks_after_last_arrival=0,
-            record_virtuals=False,
+            record_virtuals=True,
         )
 
-        stash_data[name] = np.sort(df["stash_size_after"].values)
-        queue_data[name] = np.sort(df["queue_length_after"].values)
-        yvals = np.arange(len(stash_data[name])) / float(len(stash_data[name]) - 1)
-        slug_map = {
-            "MSRC": "msrc",
-            "AliCloud": "alicloud",
-        }
-        pd.DataFrame({
-            "Stash_Size": stash_data[name],
-            "Queue_Length": queue_data[name],
-            "CDF": yvals,
-        }).to_csv(f"artifacts/csv/A2_{slug_map[name]}_distribution.csv", index=False)
+        stash_series = df["stash_peak_during_access"].astype(int).to_numpy()
+        queue_series = df["queue_length_after"].astype(int).to_numpy()
+
+        stash_data[name] = np.sort(stash_series)
+        queue_data[name] = np.sort(queue_series)
+
+        yvals = _cdf_yvals(len(stash_data[name]))
+
+        pd.DataFrame(
+            {
+                "Stash_Peak_During_Access": stash_data[name],
+                "Queue_Length": queue_data[name],
+                "CDF": yvals,
+            }
+        ).to_csv(
+            f"artifacts/csv/A2_{slug_map[name]}_distribution.csv",
+            index=False,
+        )
 
     for data_dict, xlabel, is_log, out_name in [
-        (stash_data, "Stash Size (Blocks)", False, "stash_distribution.pdf"),
-        (queue_data, "Queue Length", True, "queue_distribution.pdf"),
+        (
+            stash_data,
+            "Stash Size (Blocks)",
+            False,
+            "stash_distribution.pdf",
+        ),
+        (
+            queue_data,
+            "Queue Length",
+            True,
+            "queue_distribution.pdf",
+        ),
     ]:
         fig, ax = plt.subplots(figsize=(7, 5))
         style_map = {
@@ -115,7 +176,7 @@ def run_a2():
         max_x = 0
         for name in plot_order:
             data = data_dict[name]
-            yvals = np.arange(len(data)) / float(len(data) - 1)
+            yvals = _cdf_yvals(len(data))
             ax.plot(
                 data,
                 yvals,
@@ -136,8 +197,18 @@ def run_a2():
             ax.set_xlim(left=0, right=max(1, max_x) + 0.5)
 
         ax.grid(True, linestyle="--", alpha=0.5)
-        ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
-        fig.savefig(f"artifacts/figs/A2_{out_name}", format="pdf", bbox_inches="tight")
+        ax.legend(
+            loc="lower center",
+            bbox_to_anchor=(0.5, 1.02),
+            ncol=2,
+            frameon=False,
+        )
+        fig.savefig(
+            f"artifacts/figs/A2_{out_name}",
+            format="pdf",
+            bbox_inches="tight",
+        )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     run_a2()
