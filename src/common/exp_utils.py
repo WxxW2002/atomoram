@@ -7,8 +7,6 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Type
 
-from src.common.latency_model import LatencyModel
-from src.common.types import OperationType, Request, RequestKind
 from src.common.config import ExperimentConfig, StorageConfig
 from src.protocols.atom_oram import AtomORAM
 from src.protocols.direct_store import DirectStore

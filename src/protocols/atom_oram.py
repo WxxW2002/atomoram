@@ -7,6 +7,7 @@ from src.backend.tree_backend import TreeBackend
 from src.common.config import AtomConfig, StorageConfig
 from src.common.interfaces import AbstractORAM
 from src.common.metrics import AccessMetrics, AccessResult, TimingRecord
+from src.common.utils import truncate_payload
 from src.common.types import (
     Bucket,
     BucketAddress,
@@ -16,13 +17,6 @@ from src.common.types import (
     Request,
     RequestKind,
 )
-
-
-def _truncate_payload(block: Optional[DataBlock]) -> Optional[bytes]:
-    if block is None:
-        return None
-    logical_size = block.metadata.get("logical_payload_size", len(block.payload))
-    return block.payload[:logical_size]
 
 
 class AtomORAM(AbstractORAM):
@@ -175,7 +169,7 @@ class AtomORAM(AbstractORAM):
                     self.stash[logical_id] = working_block
                     self._update_stash_peak(metrics, len(self.stash))
                     self.position_map[logical_id] = None
-                    result_data = _truncate_payload(working_block)
+                    result_data = truncate_payload(working_block)
                 else:
                     result_data = None
 

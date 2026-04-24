@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import random
-from pathlib import Path
-
 import numpy as np
-
+from pathlib import Path
+from typing import Optional
+from src.common.types import DataBlock
 from src.common.types import BucketAddress
 
+def truncate_payload(block: Optional[DataBlock]) -> Optional[bytes]:
+    if block is None:
+        return None
+    logical_size = block.metadata.get("logical_payload_size", len(block.payload))
+    return block.payload[:logical_size]
 
 def ensure_dir(path: str | Path) -> Path:
     target = Path(path)

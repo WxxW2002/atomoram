@@ -27,7 +27,6 @@ def main() -> None:
         msrc_path,
         block_size=cfg.storage.block_size,
         compact_addresses=True,
-        split_multi_block_requests=False,
     )
     msrc_df = records_to_dataframe(msrc_records)
     msrc_out = processed_dir / "msrc_src1_0_trace.csv"
@@ -39,7 +38,6 @@ def main() -> None:
         alicloud_path,
         block_size=cfg.storage.block_size,
         compact_addresses=True,
-        split_multi_block_requests=False,
     )
     alicloud_df = records_to_dataframe(alicloud_records)
     alicloud_out = processed_dir / "alicloud_device32_trace.csv"

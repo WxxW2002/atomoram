@@ -7,6 +7,7 @@ from src.backend.tree_backend import TreeBackend
 from src.common.config import StorageConfig
 from src.common.interfaces import AbstractORAM
 from src.common.metrics import AccessMetrics, AccessResult, TimingRecord
+from src.common.utils import truncate_payload
 from src.common.types import (
     DataBlock,
     OperationType,
@@ -14,13 +15,6 @@ from src.common.types import (
     Request,
     RequestKind,
 )
-
-
-def _truncate_payload(block: Optional[DataBlock]) -> Optional[bytes]:
-    if block is None:
-        return None
-    logical_size = block.metadata.get("logical_payload_size", len(block.payload))
-    return block.payload[:logical_size]
 
 
 class PathORAM(AbstractORAM):
@@ -106,7 +100,7 @@ class PathORAM(AbstractORAM):
             block = self.stash.get(logical_id)
             if block is not None:
                 block.leaf = new_leaf
-                result_data = _truncate_payload(block)
+                result_data = truncate_payload(block)
             else:
                 result_data = None
 

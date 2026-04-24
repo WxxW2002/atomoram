@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional
 
 from src.common.config import StorageConfig
 from src.common.interfaces import AbstractORAM
 from src.common.metrics import AccessMetrics, AccessResult, TimingRecord
+from src.common.utils import truncate_payload
 from src.common.types import (
     BlockAddress,
     DataBlock,
@@ -14,14 +14,6 @@ from src.common.types import (
     Request,
     RequestKind,
 )
-
-
-def _truncate_payload(block: Optional[DataBlock]) -> Optional[bytes]:
-    if block is None:
-        return None
-    logical_size = block.metadata.get("logical_payload_size", len(block.payload))
-    return block.payload[:logical_size]
-
 
 class DirectStore(AbstractORAM):
     """
@@ -61,7 +53,7 @@ class DirectStore(AbstractORAM):
                 rtt_count=1,
                 dummy_blocks=0,
             )
-            data = _truncate_payload(self._store.get(logical_id))
+            data = truncate_payload(self._store.get(logical_id))
 
         elif request.op == OperationType.WRITE:
             if request.data is None:

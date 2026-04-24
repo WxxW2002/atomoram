@@ -29,7 +29,6 @@ def load_alicloud_trace(
     block_size: int = 4096,
     max_rows: Optional[int] = None,
     compact_addresses: bool = True,
-    split_multi_block_requests: bool = False,
 ) -> list[TraceRecord]:
     csv_path = Path(path)
     df = pd.read_csv(
