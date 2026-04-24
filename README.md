@@ -1,7 +1,7 @@
-# AtomORAM: Achieving $O(1)$ Online Server I/O for Low Access Latency under Sparse Workloads
+# Atom ORAM:  Toward $O(1)$ Online Server I/O for Low-Latency under Sparse Workloads
 
 ## Introduction
-AtomORAM is a novel Oblivious RAM (ORAM) construction that achieves $O(1)$ online server I/O and $O(1)$ online bandwidth within a single round trip. By decoupling the costly access obfuscation process from actual data retrieval via a timer-driven *Virtual Access Insertion* mechanism, AtomORAM amortizes the overhead required to hide access patterns across inter-request intervals.
+AtomORAM is a novel Oblivious RAM (ORAM) construction that achieves $O(1)$ online server I/O and $O(1)$ online bandwidth within a single round trip. By decoupling the costly access obfuscation process from actual data retrieval via a timer-driven *Dummy Access Insertion* mechanism, AtomORAM amortizes the overhead required to hide access patterns across inter-request intervals.
 
 This repository contains a conceptual prototype for academic research and is designed to produce the theoretical claims and experimental results presented in our paper. It is not optimized or intended for production deployment.
 
@@ -78,7 +78,7 @@ The evaluation compares AtomORAM with the following baselines:Non-recursive Path
     ```
 5. Prepare trace data for evaluation:
     ```bash
-    python3 scripts/prepare_traces.py
+    PYTHONPATH=. python3 scripts/prepare_traces.py
     ```
 ---
 
@@ -89,7 +89,7 @@ The following commands will produce the results of the experiment. All generated
 
 #### Figure 1: Sparse Slack CDF
 ```bash
-python3 scripts/exp_e1_slack_cdf.py
+PYTHONPATH=. python3 scripts/exp_e1_slack_cdf.py
 ```
 
 This command verifies the feasibility of the Sparse Access Assumption on real-world cloud traces by showing the Cumulative Distribution Function (CDF) of the idle gaps between real requests.
@@ -105,7 +105,7 @@ The generated figure is saved in artifacts/figs/Fig1_Sparse_Slack_CDF.pdf, and t
 
 #### Figure 2: Mechanism Validation (Online Server I/O & Latency)
 ```bash
-python3 scripts/exp_e2_mechanism.py
+PYTHONPATH=. python3 scripts/exp_e2_mechanism.py
 ```
 
 This command directly validates the core contribution: AtomORAM maintains $O(1)$ online server I/O and critical-path latency as the tree capacity ($N$) scales, in contrast to the $O(\log N)$ PathORAM and RingORAM.
@@ -121,7 +121,7 @@ The generated figure is saved in artifacts/figs/Fig2_Mechanism_Validation.pdf, a
 
 #### Figure 3: Synthetic Sparsity Sweep
 ```bash
-python3 scripts/exp_e3_sparsity_sweep.py
+PYTHONPATH=. python3 scripts/exp_e3_sparsity_sweep.py
 ```
 
 This command runs a boundary sweep experiment demonstrating system behavior across different sparsity ratios ($\alpha$). Shows near-zero queuing delay when $\alpha \ge 1$ (assumption holds) and expected graceful degradation when $\alpha < 1$ (assumption violated).
@@ -137,7 +137,7 @@ The generated figure is saved in artifacts/figs/Fig3_Sparsity_Sweep.pdf, and the
 
 #### Figure 4: Real-World Trace Comparison
 ```bash
-python3 scripts/exp_e4_real_trace.py
+PYTHONPATH=. python3 scripts/exp_e4_real_trace.py
 ```
 
 This command performs an end-to-end P95 latency evaluation comparing AtomORAM against Path ORAM and Ring ORAM on MSRC (sparse) and AliCloud (dense) workloads.
@@ -153,7 +153,7 @@ The generated figure is saved in artifacts/figs/Fig4_Real_Trace_Comparison.pdf, 
 
 #### Figure 5: Burst Recovery
 ```bash
-python3 scripts/exp_e5_burst_recovery.py
+PYTHONPATH=. python3 scripts/exp_e5_burst_recovery.py
 ```
 
 This command demonstrates the resilience and self-healing capability of AtomORAM, showing how accumulated queue lengths during traffic bursts are digested during subsequent idle periods.
@@ -169,7 +169,7 @@ The generated figure is saved in artifacts/figs/Fig5_Burst_Recovery.pdf, and the
 
 #### Figure A1: Amortized Bandwidth
 ```bash
-python3 scripts/exp_a1_bandwidth.py
+PYTHONPATH=. python3 scripts/exp_a1_bandwidth.py
 ```
 This command quantifies the total amortized bandwidth overhead. It demonstrates that while AtomORAM achieves $O(1)$ online server I/O, it honestly accounts for the necessary background bandwidth cost required to maintain security.
 
@@ -182,7 +182,7 @@ The generated figure is saved in artifacts/figs/FigA1_Bandwidth.pdf, and the raw
 
 #### Figure A2: Stash and Queue Empirical Distributions
 ```bash
-python3 scripts/exp_a2_distributions.py
+PYTHONPATH=. python3 scripts/exp_a2_distributions.py
 ```
 
 This command runs appendix experiments demonstrating the physical bounds of the system in steady-state. FigA2_Stash_Distribution.pdf proves that client stash size is tightly bounded ($O(1)$ physical memory), refuting trivial caching concerns. FigA2_Queue_Distribution.pdf shows the long-tail queue distribution under dense workloads.
