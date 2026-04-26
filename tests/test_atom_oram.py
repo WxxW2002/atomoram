@@ -161,6 +161,26 @@ def test_atom_oram_virtual_access_executes_epoch_micro_eviction() -> None:
     assert result.metrics.offline_rtt == 2
 
 
+def test_atom_oram_virtual_access_can_execute_explicit_bucket_address() -> None:
+    oram = make_oram()
+
+    explicit_bucket = BucketAddress(level=2, index=1)
+    _pin_epoch(oram, leaf=13, step=0)
+
+    req = Request(
+        request_id=1,
+        kind=RequestKind.VIRTUAL,
+        op=OperationType.READ,
+        address=explicit_bucket,
+    )
+    result = oram.access(req)
+
+    assert result.data is None
+    assert result.debug.current_bucket == (2, 1)
+    assert result.metrics.virtual_requests_executed == 1
+    assert result.metrics.online_bucket_reads == 1
+
+
 def test_atom_oram_missing_read_non_root_returns_none_with_new_counts() -> None:
     oram = make_oram()
 

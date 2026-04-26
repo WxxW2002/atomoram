@@ -9,7 +9,7 @@ from src.protocols.atom_oram import AtomORAM
 from src.common.config import ExperimentConfig
 from src.common.latency_model import LatencyModel
 from src.traces.schema import TraceRecord
-from src.common.types import OperationType, Request, RequestKind, BlockAddress
+from src.common.types import OperationType
 from src.common.exp_utils import instantiate_protocol, prepare_storage_config
 
 os.makedirs("artifacts/figs", exist_ok=True)
@@ -49,34 +49,36 @@ def load_trace(file_path, limit=5000):
     return records
 
 
-def warmup_protocol(protocol, warmup_virtual_ticks, block_size, num_blocks=50000):
+def warmup_protocol(protocol, runner, block_size, reference_gap_sec, num_blocks=50000):
+    """Warm AtomORAM through the same compensation scheduler used in experiments.
+
+    This replaces the old direct write + fixed virtual-tick loop. The timestamps
+    are spaced by the sparse reference gap, so warmup does not intentionally
+    create a large queue.
+    """
+    records = []
     for i in range(num_blocks):
-        fill_byte = (i % 251) + 1
-        protocol.access(
-            Request(
-                request_id=-(i + 1),
-                kind=RequestKind.REAL,
+        records.append(
+            TraceRecord(
+                trace_id=-(i + 1),
+                timestamp=i * reference_gap_sec,
                 op=OperationType.WRITE,
-                address=BlockAddress(logical_id=i),
-                data=bytes([fill_byte]) * block_size,
-                arrival_time=0.0,
-                issued_time=0.0,
-                tag="warmup",
+                logical_id=i,
+                size_bytes=block_size,
+                source="warmup",
+                original_index=i,
+                original_offset=0,
+                request_group=0,
             )
         )
-        for j in range(warmup_virtual_ticks):
-            protocol.access(
-                Request(
-                    request_id=-(i * warmup_virtual_ticks + j + 1000000),
-                    kind=RequestKind.VIRTUAL,
-                    op=OperationType.READ,
-                    address=None,
-                    data=None,
-                    arrival_time=0.0,
-                    issued_time=0.0,
-                    tag="warmup_virtual",
-                )
-            )
+
+    runner.run(
+        protocol=protocol,
+        records=records,
+        block_size=block_size,
+        max_idle_ticks_after_last_arrival=0,
+        record_virtuals=False,
+    )
 
 
 def _cdf_yvals(n: int) -> np.ndarray:
@@ -90,9 +92,7 @@ def run_a2():
     L = cfg.storage.tree_height
     lambda_1 = cfg.atom.lambda1
     block_size = cfg.storage.block_size
-
-    required_virtual_ticks = int(lambda_1 * L)
-    warmup_virtual_ticks = required_virtual_ticks
+    reference_gap_sec = lambda_1 * L * cfg.atom.tick_interval_sec
 
     traces = {
         "MSRC": "data/processed/msrc_src1_0_trace.csv",
@@ -118,10 +118,15 @@ def run_a2():
         )
         protocol = instantiate_protocol(AtomORAM, cfg, storage_cfg, rng_seed=0)
 
+        warmup_runner = AtomEventRunner(
+            latency_model=LatencyModel(config=cfg),
+            atom_config=cfg.atom,
+        )
         warmup_protocol(
             protocol=protocol,
-            warmup_virtual_ticks=warmup_virtual_ticks,
+            runner=warmup_runner,
             block_size=block_size,
+            reference_gap_sec=reference_gap_sec,
             num_blocks=50000,
         )
 
@@ -134,7 +139,6 @@ def run_a2():
             protocol=protocol,
             records=records,
             block_size=block_size,
-            required_virtual_ticks=required_virtual_ticks,
             max_idle_ticks_after_last_arrival=0,
             record_virtuals=True,
         )

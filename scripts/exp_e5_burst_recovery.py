@@ -1,4 +1,5 @@
 import os
+import random
 import pandas as pd
 import matplotlib.pyplot as plt
 from src.sim.atom_event_runner import AtomEventRunner
@@ -14,99 +15,246 @@ os.makedirs('artifacts/csv', exist_ok=True)
 plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42, 'axes.linewidth': 1.2})
 
 def generate_burst_trace(
-    t_virt,
-    required_virtual_ticks,
+    *,
+    base_gap_sec,
     block_size,
-    burst_size=100,
-    num_bursts=3,
-    burst_gap_factor=0.1,
-    idle_margin_sec=0.5,
-    rtt_sec=0.02,
-    bucket_read_sec=0.005,
-    bucket_write_sec=0.005,
+    burst_sizes,
+    expected_service_gap_sec,
+    service_tail_sec,
+    drain_safety,
+    seed=7,
+    burst_interarrival_range=(0.04, 0.28),
 ):
+    rng = random.Random(seed)
+
     records = []
+    burst_meta = []
+
     current_time = 0.0
     trace_id = 0
 
-    base_gap = t_virt * required_virtual_ticks
-    burst_gap = base_gap * burst_gap_factor
-    tail = 2 * rtt_sec + 2 * bucket_read_sec + 2 * bucket_write_sec
+    for burst_idx, burst_size in enumerate(burst_sizes):
+        burst_start = current_time
 
-    recovery_gap = tail + max(0, burst_size - 1) * max(0.0, base_gap - burst_gap)
-    idle_gap = recovery_gap + idle_margin_sec
+        for j in range(burst_size):
+            if j > 0:
+                current_time += base_gap_sec * rng.uniform(
+                    burst_interarrival_range[0],
+                    burst_interarrival_range[1],
+                )
 
-    for burst_idx in range(num_bursts):
-        for _ in range(burst_size):
             records.append(
                 TraceRecord(
                     trace_id=trace_id,
                     timestamp=current_time,
-                    op=OperationType.READ,
-                    logical_id=trace_id % 1000,
+                    op=OperationType.READ if trace_id % 3 else OperationType.WRITE,
+                    logical_id=(trace_id * 17) % 10000,
                     size_bytes=block_size,
-                    source=f"b{burst_idx + 1}",
+                    source=f"burst_{burst_idx + 1}_n{burst_size}",
                     original_index=trace_id,
                     original_offset=0,
                     request_group=burst_idx,
                 )
             )
-            current_time += burst_gap
             trace_id += 1
 
-        if burst_idx < num_bursts - 1:
-            current_time += idle_gap
+        burst_end = current_time
 
-    return records
+        burst_meta.append(
+            {
+                "Burst": burst_idx + 1,
+                "Burst_Size": burst_size,
+                "Burst_Start_Time": burst_start,
+                "Burst_End_Time": burst_end,
+            }
+        )
 
-def run_e5():
-    cfg = ExperimentConfig.load_default()
-    L = cfg.storage.tree_height
-    t_virt = cfg.atom.tick_interval_sec
-    lambda_1 = cfg.atom.lambda1
-    block_size = cfg.storage.block_size
-    required_virtual_ticks = int(lambda_1 * L)
+        if burst_idx < len(burst_sizes) - 1:
+            drain_gap = drain_safety * (
+                burst_size * expected_service_gap_sec + service_tail_sec
+            )
+            drain_gap *= rng.uniform(0.9, 1.1)
+            current_time += drain_gap
 
-    records = generate_burst_trace(
-        t_virt=t_virt,
-        required_virtual_ticks=required_virtual_ticks,
-        block_size=block_size,
-        burst_size=100,
-        num_bursts=3,
-        burst_gap_factor=0.25,
-        idle_margin_sec=0.25,
-        rtt_sec=cfg.network.rtt_sec,
-        bucket_read_sec=cfg.server_io.bucket_read_sec,
-        bucket_write_sec=cfg.server_io.bucket_write_sec,
-    )
+    return records, pd.DataFrame(burst_meta)
 
+def run_atom(records, cfg, block_size, *, run_tag):
     storage_cfg = prepare_storage_config(
         cfg.storage,
         exp_name="e5",
         protocol_name="AtomORAM",
-        run_tag="burst_recovery",
+        run_tag=run_tag,
     )
     protocol = instantiate_protocol(AtomORAM, cfg, storage_cfg, rng_seed=0)
 
-    runner = AtomEventRunner(latency_model=LatencyModel(config=cfg), atom_config=cfg.atom)
+    runner = AtomEventRunner(
+        latency_model=LatencyModel(config=cfg),
+        atom_config=cfg.atom,
+    )
+
     df = runner.run(
         protocol=protocol,
         records=records,
         block_size=block_size,
-        required_virtual_ticks=required_virtual_ticks,
         max_idle_ticks_after_last_arrival=0,
         record_virtuals=False,
     )
 
-    real_df = df[df["service_kind"] == "real"][["arrival_time", "queue_length_after"]]
-    real_df.to_csv("artifacts/csv/E5_burst_recovery.csv", index=False)
+    return df
 
-    plt.figure(figsize=(7, 4))
-    plt.plot(real_df["arrival_time"], real_df["queue_length_after"], marker=".", linestyle="-", color="tab:blue", linewidth=2)
-    plt.xlabel("Time (s)")
-    plt.ylabel("Queue Length")
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.savefig("artifacts/figs/E5_burst_recovery.pdf", format="pdf", bbox_inches="tight")
+def build_queue_timeline(real_df):
+    events = []
+
+    for row in real_df.itertuples(index=False):
+        events.append((float(row.arrival_time), 0, +1))
+        events.append((float(row.service_start_time), 1, -1))
+
+    events.sort(key=lambda x: (x[0], x[1]))
+
+    q = 0
+    timeline = []
+
+    if events:
+        timeline.append({"time": events[0][0], "queue_length": 0})
+
+    for t, _, delta in events:
+        timeline.append({"time": t, "queue_length": q})
+        q += delta
+        q = max(q, 0)
+        timeline.append({"time": t, "queue_length": q})
+
+    return pd.DataFrame(timeline)
+
+def previous_burst_drained_before_next(queue_df, burst_start_times):
+    for start_time in burst_start_times[1:]:
+        before = queue_df[queue_df["time"] <= start_time]
+
+        if before.empty:
+            return False
+
+        q_before_next_burst = int(before.iloc[-1]["queue_length"])
+
+        if q_before_next_burst != 0:
+            return False
+
+    return True
+
+def run_e5():
+    cfg = ExperimentConfig.load_default()
+
+    L = cfg.storage.tree_height
+    t_virt = cfg.atom.tick_interval_sec
+    block_size = cfg.storage.block_size
+
+    # Same normalization as E1/E3:
+    # alpha = Delta t_real / (L * t_virt).
+    # This is only a workload scale; the runner uses the compensation scheduler.
+    base_gap_sec = L * t_virt
+
+    burst_sizes = [10, 30, 50, 70, 90]
+
+    # Expected waiting between successive real requests under level-uniform
+    # compensation is approximately (L + 1) timer ticks.
+    expected_service_gap_sec = (L + 1) * t_virt
+
+    # Single-tail term used only as a conservative drain-gap estimate.
+    # It is not repeatedly charged per virtual tick.
+    service_tail_sec = (
+        2 * cfg.network.rtt_sec
+        + 2 * cfg.server_io.bucket_read_sec
+        + 2 * cfg.server_io.bucket_write_sec
+    )
+
+    final_df = None
+    final_records = None
+    final_burst_meta = None
+    final_queue_df = None
+
+    # Start with a relatively tight gap.  Increase only if the simulated queue
+    # has not drained before the next burst.
+    drain_safety = 0.85
+
+    for attempt in range(10):
+        records, burst_meta = generate_burst_trace(
+            base_gap_sec=base_gap_sec,
+            block_size=block_size,
+            burst_sizes=burst_sizes,
+            expected_service_gap_sec=expected_service_gap_sec,
+            service_tail_sec=service_tail_sec,
+            drain_safety=drain_safety,
+            seed=7,
+            burst_interarrival_range=(0.04, 0.28),
+        )
+
+        df = run_atom(
+            records=records,
+            cfg=cfg,
+            block_size=block_size,
+            run_tag=f"burst_recovery_attempt_{attempt}",
+        )
+
+        real_df = df[df["service_kind"] == "real"].copy()
+        queue_df = build_queue_timeline(real_df)
+
+        burst_start_times = burst_meta["Burst_Start_Time"].tolist()
+
+        if previous_burst_drained_before_next(queue_df, burst_start_times):
+            final_df = df
+            final_records = records
+            final_burst_meta = burst_meta
+            final_queue_df = queue_df
+            break
+
+        drain_safety *= 1.15
+
+    if (
+        final_df is None
+        or final_records is None
+        or final_burst_meta is None
+        or final_queue_df is None
+    ):
+        raise RuntimeError(
+            "Could not construct an E5 trace where each previous burst drains "
+            "before the next burst starts. Increase retry count or drain_safety."
+        )
+
+    real_df = final_df[final_df["service_kind"] == "real"].copy()
+
+    real_df[
+        [
+            "arrival_time",
+            "service_start_time",
+            "response_time",
+            "request_group",
+            "source",
+            "queue_length_before",
+            "queue_length_after",
+            "queueing_delay",
+            "end_to_end_latency",
+        ]
+    ].to_csv("artifacts/csv/E5_burst_recovery.csv", index=False)
+
+    final_burst_meta.to_csv("artifacts/csv/E5_burst_metadata.csv", index=False)
+    final_queue_df.to_csv("artifacts/csv/E5_queue_timeline.csv", index=False)
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+
+    ax.plot(
+        final_queue_df["time"],
+        final_queue_df["queue_length"],
+        drawstyle="steps-post",
+        linewidth=1.8,
+    )
+
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Queue Length")
+    ax.grid(True, linestyle="--", alpha=0.5)
+
+    fig.savefig(
+        "artifacts/figs/E5_burst_recovery.pdf",
+        format="pdf",
+        bbox_inches="tight",
+    )
 
 if __name__ == '__main__':
     run_e5()

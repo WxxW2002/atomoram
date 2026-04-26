@@ -83,7 +83,7 @@ The evaluation compares AtomORAM with the following baselines:Non-recursive Path
 ---
 
 ### Experiment
-The following commands will produce the results of the experiment. All generated figures (PDF) will be saved in artifacts/outputs/ and the corresponding raw data (CSV) in artifacts/csv/.
+The following commands will produce the results of the experiment. All generated figures (PDF) will be saved in artifacts/figs/ and the corresponding raw data (CSV) in artifacts/csv/.
 
 ---
 

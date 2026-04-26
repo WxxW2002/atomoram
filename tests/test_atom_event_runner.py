@@ -53,8 +53,8 @@ def make_env(tick_interval_sec: float = 1.0):
     return protocol, runner, storage
 
 
-def test_atom_event_runner_inserts_required_virtual_accesses_between_reals() -> None:
-    protocol, runner, storage = make_env()
+def test_atom_event_runner_compensates_before_next_real() -> None:
+    protocol, runner, storage = make_env(tick_interval_sec=0.01)
 
     records = generate_constant_interval_trace(
         num_requests=2,
@@ -69,16 +69,24 @@ def test_atom_event_runner_inserts_required_virtual_accesses_between_reals() -> 
         protocol=protocol,
         records=records,
         block_size=storage.block_size,
-        required_virtual_ticks=2,
         record_virtuals=True,
-    )
+    ).reset_index(drop=True)
 
-    assert list(df["service_kind"])[:4] == ["real", "virtual", "virtual", "real"]
-    assert bool(df.loc[1, "executed_virtual_access"]) is True
-    assert bool(df.loc[2, "executed_virtual_access"]) is True
+    real_indices = list(df.index[df["service_kind"] == "real"])
+    assert len(real_indices) == 2
+
+    middle = df.iloc[real_indices[0] + 1: real_indices[1]]
+    assert len(middle) >= 1
+    assert set(middle["service_kind"]) == {"virtual"}
+    assert bool(middle["required_virtual_access"].all()) is True
+    assert bool(middle["compensation_wait_tick"].all()) is True
+    assert bool(middle["compensation_satisfied"].any()) is True
+
+    satisfied = middle[middle["compensation_satisfied"]].iloc[-1]
+    assert int(satisfied["generated_dummy_level"]) == int(satisfied["compensating_real_level"])
 
 
-def test_atom_event_runner_queueing_and_fallback_under_interval_runner() -> None:
+def test_atom_event_runner_queueing_and_fallback_under_compensation_runner() -> None:
     protocol, runner, storage = make_env()
 
     records = generate_constant_interval_trace(
@@ -94,7 +102,6 @@ def test_atom_event_runner_queueing_and_fallback_under_interval_runner() -> None
         protocol=protocol,
         records=records,
         block_size=storage.block_size,
-        required_virtual_ticks=1,
         record_virtuals=True,
     )
 
@@ -152,7 +159,6 @@ def test_atom_event_runner_visible_latency_uses_online_only() -> None:
         protocol=protocol,
         records=records,
         block_size=storage.block_size,
-        required_virtual_ticks=0,
         record_virtuals=False,
     )
 
@@ -178,7 +184,6 @@ def test_atom_event_runner_real_without_queue_has_visible_latency_equal_online_l
         protocol=protocol,
         records=records,
         block_size=storage.block_size,
-        required_virtual_ticks=2,
         record_virtuals=False,
     )
 
@@ -187,7 +192,7 @@ def test_atom_event_runner_real_without_queue_has_visible_latency_equal_online_l
     assert float(row["end_to_end_latency"]) == pytest.approx(float(row["online_latency"]))
 
 
-def test_atom_event_runner_second_real_queueing_matches_interval_plus_first_real_service_tail() -> None:
+def test_atom_event_runner_no_fixed_virtual_count_between_reals() -> None:
     protocol, runner, storage = make_env(tick_interval_sec=0.01)
 
     records = generate_constant_interval_trace(
@@ -199,25 +204,24 @@ def test_atom_event_runner_second_real_queueing_matches_interval_plus_first_real
         request_size_bytes=storage.block_size,
     )
 
-    required_virtual_ticks = 3
     df = runner.run(
         protocol=protocol,
         records=records,
         block_size=storage.block_size,
-        required_virtual_ticks=required_virtual_ticks,
         record_virtuals=True,
-    )
+    ).reset_index(drop=True)
 
-    real_df = df[df["service_kind"] == "real"].reset_index(drop=True)
-    first_real_service_tail = float(real_df.loc[0, "total_latency"] - real_df.loc[0, "queueing_delay"])
-    interval_part = required_virtual_ticks * runner.atom_config.tick_interval_sec
-    expected = interval_part + first_real_service_tail
+    real_indices = list(df.index[df["service_kind"] == "real"])
+    middle = df.iloc[real_indices[0] + 1: real_indices[1]]
 
-    assert float(real_df.loc[0, "queueing_delay"]) == pytest.approx(0.0)
-    assert float(real_df.loc[1, "queueing_delay"]) == pytest.approx(expected)
+    assert len(middle) >= 1
+    assert bool(middle["compensation_satisfied"].iloc[-1]) is True
+    # The count is determined by level-match waiting, not by a fixed
+    # lambda*logN parameter passed to runner.run().
+    assert runner.required_virtual_ticks_executed >= len(middle)
 
 
-def test_atom_event_runner_burst_queueing_grows_with_interval_and_single_tail() -> None:
+def test_atom_event_runner_compensation_match_uses_real_level() -> None:
     protocol, runner, storage = make_env(tick_interval_sec=0.01)
 
     records = generate_constant_interval_trace(
@@ -229,19 +233,16 @@ def test_atom_event_runner_burst_queueing_grows_with_interval_and_single_tail() 
         request_size_bytes=storage.block_size,
     )
 
-    required_virtual_ticks = 2
     df = runner.run(
         protocol=protocol,
         records=records,
         block_size=storage.block_size,
-        required_virtual_ticks=required_virtual_ticks,
         record_virtuals=True,
     )
 
-    real_df = df[df["service_kind"] == "real"].reset_index(drop=True)
-    first_real_service_tail = float(real_df.loc[0, "total_latency"] - real_df.loc[0, "queueing_delay"])
-    interval_part = required_virtual_ticks * runner.atom_config.tick_interval_sec
-
-    assert float(real_df.loc[0, "queueing_delay"]) == pytest.approx(0.0)
-    assert float(real_df.loc[1, "queueing_delay"]) == pytest.approx(interval_part + first_real_service_tail)
-    assert float(real_df.loc[2, "queueing_delay"]) == pytest.approx(2 * interval_part + first_real_service_tail)
+    satisfied = df[df["compensation_satisfied"] == True]  # noqa: E712
+    assert len(satisfied) >= 3
+    assert (
+        satisfied["generated_dummy_level"].astype(int)
+        == satisfied["compensating_real_level"].astype(int)
+    ).all()

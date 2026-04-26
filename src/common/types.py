@@ -38,7 +38,7 @@ class Request:
     request_id: int
     kind: RequestKind
     op: OperationType
-    address: Optional[BlockAddress] = None
+    address: Optional[BlockAddress | BucketAddress] = None
     data: Optional[bytes] = None
     arrival_time: Optional[float] = None
     issued_time: Optional[float] = None

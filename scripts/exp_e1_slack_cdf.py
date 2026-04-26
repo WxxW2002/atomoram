@@ -34,15 +34,14 @@ def run_e1():
         ax.plot(sorted_data, yvals, label=label, linewidth=2)
 
     ax.set_xscale('symlog', linthresh=0.1)
-    ax.axvline(x=1, color='orange', linestyle=':', label=rf'$\lambda_1 = 1.0$')
-    ax.axvline(x=lambda_1, color='red', linestyle=':', label=rf'$\lambda_1 = {lambda_1}$ (target)')
+    ax.axvline(x=1, color='red', linestyle=':', label=rf'$\lambda_1 = 1.0$')
 
     ax.set_xlim(-0.01, 10000)
     ax.set_ylim(0, 1.05)
     ax.set_xlabel(r'Sparse Slack $\alpha = \Delta t_{real} / (L \cdot t_{virt})$')
     ax.set_ylabel('CDF')
     
-    ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=4, frameon=False)
+    ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
     ax.grid(True, linestyle='--', alpha=0.5)
 
     plt.savefig('artifacts/figs/E1_sparse_slack_cdf.pdf', format='pdf', bbox_inches='tight')

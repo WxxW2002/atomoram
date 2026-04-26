@@ -66,10 +66,7 @@ def run_baseline_bw(protocol_class, cfg, records, block_size, run_tag):
 
 def run_a1():
     cfg = ExperimentConfig.load_default()
-    L = cfg.storage.tree_height
-    lambda_1 = cfg.atom.lambda1
     block_size = cfg.storage.block_size
-    required_virtual_ticks = int(lambda_1 * L)
 
     traces = {
         "MSRC": "data/processed/msrc_src1_0_trace.csv",
@@ -96,7 +93,6 @@ def run_a1():
             protocol=atom_protocol,
             records=records,
             block_size=block_size,
-            required_virtual_ticks=required_virtual_ticks,
             max_idle_ticks_after_last_arrival=0,
             record_virtuals=False,
         )
@@ -109,12 +105,12 @@ def run_a1():
             + real_df['offline_bytes_up'].sum()
         )
 
-        bw_atom_required_virtual = (
+        bw_atom_compensation_virtual = (
             runner.required_virtual_bytes_down
             + runner.required_virtual_bytes_up
         )
 
-        bw_atom_total = bw_atom_real + bw_atom_required_virtual
+        bw_atom_total = bw_atom_real + bw_atom_compensation_virtual
 
         for prot, bw in [("Path ORAM", bw_path), ("Ring ORAM", bw_ring), ("AtomORAM", bw_atom_total)]:
             plot_data.append({

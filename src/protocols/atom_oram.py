@@ -16,6 +16,7 @@ from src.common.types import (
     ProtocolKind,
     Request,
     RequestKind,
+    BlockAddress,
 )
 
 
@@ -136,14 +137,22 @@ class AtomORAM(AbstractORAM):
             metrics.virtual_requests_executed = 1
 
         if request.kind == RequestKind.REAL:
-            if request.address is None:
-                raise ValueError("Real AtomORAM request requires request.address.")
+            if not isinstance(request.address, BlockAddress):
+                raise ValueError("Real AtomORAM request requires a BlockAddress.")
             logical_id = request.address.logical_id
             self._validate_logical_id(logical_id)
             target_bucket = self._resolve_real_target_bucket(logical_id)
         else:
             logical_id = None
-            target_bucket = self._sample_uniform_bucket_address()
+            if request.address is None:
+                target_bucket = self._sample_uniform_bucket_address()
+            elif isinstance(request.address, BucketAddress):
+                self._validate_bucket_address(request.address)
+                target_bucket = request.address
+            else:
+                raise ValueError(
+                    "Virtual AtomORAM request address must be None or BucketAddress."
+                )
 
         target_bucket_image = self._read_bucket_raw(
             address=target_bucket,
@@ -252,10 +261,23 @@ class AtomORAM(AbstractORAM):
     def _sample_leaf(self) -> int:
         return self._rng.randrange(self.leaf_count)
 
+    def sample_virtual_bucket_address(self) -> BucketAddress:
+        return self._sample_uniform_bucket_address()
+
     def _sample_uniform_bucket_address(self) -> BucketAddress:
         level = self._rng.randrange(self.num_levels)
         index = self._rng.randrange(1 << level)
         return BucketAddress(level=level, index=index)
+
+    def _validate_bucket_address(self, address: BucketAddress) -> None:
+        if address.level < 0 or address.level >= self.num_levels:
+            raise ValueError(
+                f"Bucket level {address.level} is outside [0, {self.num_levels - 1}]."
+            )
+        if address.index < 0 or address.index >= (1 << address.level):
+            raise ValueError(
+                f"Bucket index {address.index} is outside level {address.level}."
+            )
 
     def _resolve_real_target_bucket(self, logical_id: int) -> BucketAddress:
         current_bucket = self.position_map[logical_id]

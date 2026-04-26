@@ -80,10 +80,7 @@ def run_baseline(protocol_class, cfg, records, latency_model, block_size, run_ta
 
 def run_e4():
     cfg = ExperimentConfig.load_default()
-    L = cfg.storage.tree_height
-    lambda_1 = cfg.atom.lambda1
     block_size = cfg.storage.block_size
-    required_virtual_ticks = int(lambda_1 * L)
 
     traces = {
         "MSRC": "data/processed/msrc_src1_0_trace.csv",
@@ -117,7 +114,6 @@ def run_e4():
             protocol=atom_protocol,
             records=records,
             block_size=block_size,
-            required_virtual_ticks=required_virtual_ticks,
             max_idle_ticks_after_last_arrival=0,
             record_virtuals=False,
         )
