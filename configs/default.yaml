@@ -9,23 +9,23 @@ storage:
 network:
   down_bw_bytes_per_sec: 104857600
   up_bw_bytes_per_sec: 104857600
-  rtt_sec: 0.02
+  rtt_sec: 0.004
 
 crypto:
   enc_bytes_per_sec: 2000000000
   dec_bytes_per_sec: 2000000000
 
 server_io:
-  bucket_read_sec: 0.005
-  bucket_write_sec: 0.005
+  bucket_read_sec: 0.000040
+  bucket_write_sec: 0.000040
 
 ring:
   s_num: 12
   a_num: 8
 
 atom:
-  lambda1: 2.0
-  tick_interval_sec: 0.003
+  lambda1: 1.0
+  tick_interval_sec: 0.0002
   queue_limit: 100000
   local_top_half_enabled: true
   local_cutoff_level:

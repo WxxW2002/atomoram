@@ -11,6 +11,7 @@ from src.common.latency_model import LatencyEstimate, LatencyModel
 from src.common.types import BucketAddress, BlockAddress, OperationType, Request, RequestKind
 from src.traces.schema import TraceRecord
 
+EPS = 1e-12
 
 @dataclass(slots=True)
 class CompensationObligation:
@@ -82,7 +83,7 @@ class AtomEventRunner:
         while True:
             while (
                 next_arrival_idx < len(ordered)
-                and ordered[next_arrival_idx].timestamp <= tick_time
+                and ordered[next_arrival_idx].timestamp <= tick_time + EPS
             ):
                 pending_real.append(ordered[next_arrival_idx])
                 next_arrival_idx += 1
@@ -95,9 +96,7 @@ class AtomEventRunner:
             ):
                 burst_tail_added = False
 
-            # Compensation has priority over all real requests.  While a real
-            # access is uncompensated, the runner keeps executing timer ticks
-            # until the generated dummy level matches the real access level.
+            # Compensation has priority over all real requests. 
             if compensation is not None:
                 generated_dummy = self._sample_virtual_bucket(protocol)
                 if generated_dummy.level == compensation.real_level:
