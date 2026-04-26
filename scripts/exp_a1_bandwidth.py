@@ -17,9 +17,28 @@ os.makedirs('artifacts/csv', exist_ok=True)
 plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42, 'axes.linewidth': 1.2})
 
 def load_trace(file_path, limit=1000):
-    df = pd.read_csv(file_path, nrows=limit)
-    return [TraceRecord(trace_id=int(row['trace_id']), timestamp=float(row['timestamp']), op=OperationType.WRITE if row['op'] == 'W' else OperationType.READ, logical_id=int(row['logical_id']), size_bytes=int(row['size_bytes']), source='trace', original_index=int(row['trace_id']), original_offset=0, request_group=0) for _, row in df.iterrows()]
+    from src.traces.schema import normalize_operation
 
+    df = pd.read_csv(file_path, nrows=limit)
+    records = []
+
+    for _, row in df.iterrows():
+        records.append(
+            TraceRecord(
+                trace_id=int(row["trace_id"]),
+                timestamp=float(row["timestamp"]),
+                op=normalize_operation(row["op"]),
+                logical_id=int(row["logical_id"]),
+                size_bytes=int(row["size_bytes"]),
+                source="trace",
+                original_index=int(row["trace_id"]),
+                original_offset=0,
+                request_group=0,
+            )
+        )
+
+    return records
+    
 def run_baseline_bw(protocol_class, cfg, records, block_size, run_tag):
     storage_cfg = prepare_storage_config(
         cfg.storage,

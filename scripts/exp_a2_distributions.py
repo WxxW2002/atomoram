@@ -26,21 +26,27 @@ plt.rcParams.update(
 
 
 def load_trace(file_path, limit=5000):
+    from src.traces.schema import normalize_operation
+
     df = pd.read_csv(file_path, nrows=limit)
-    return [
-        TraceRecord(
-            trace_id=int(row["trace_id"]),
-            timestamp=float(row["timestamp"]),
-            op=OperationType.WRITE if row["op"] == "W" else OperationType.READ,
-            logical_id=int(row["logical_id"]),
-            size_bytes=int(row["size_bytes"]),
-            source="real_trace",
-            original_index=int(row["trace_id"]),
-            original_offset=0,
-            request_group=0,
+    records = []
+
+    for _, row in df.iterrows():
+        records.append(
+            TraceRecord(
+                trace_id=int(row["trace_id"]),
+                timestamp=float(row["timestamp"]),
+                op=normalize_operation(row["op"]),
+                logical_id=int(row["logical_id"]),
+                size_bytes=int(row["size_bytes"]),
+                source="real_trace",
+                original_index=int(row["trace_id"]),
+                original_offset=0,
+                request_group=0,
+            )
         )
-        for _, row in df.iterrows()
-    ]
+
+    return records
 
 
 def warmup_protocol(protocol, warmup_virtual_ticks, block_size, num_blocks=50000):

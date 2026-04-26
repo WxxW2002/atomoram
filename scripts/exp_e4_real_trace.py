@@ -17,8 +17,27 @@ os.makedirs('artifacts/csv', exist_ok=True)
 plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42, 'axes.linewidth': 1.2})
 
 def load_trace(file_path, limit=2000):
+    from src.traces.schema import normalize_operation
+
     df = pd.read_csv(file_path, nrows=limit)
-    return [TraceRecord(trace_id=int(row['trace_id']), timestamp=float(row['timestamp']), op=OperationType.WRITE if row['op'] == 'W' else OperationType.READ, logical_id=int(row['logical_id']), size_bytes=int(row['size_bytes']), source='real_trace', original_index=int(row['trace_id']), original_offset=0, request_group=0) for _, row in df.iterrows()]
+    records = []
+
+    for _, row in df.iterrows():
+        records.append(
+            TraceRecord(
+                trace_id=int(row["trace_id"]),
+                timestamp=float(row["timestamp"]),
+                op=normalize_operation(row["op"]),
+                logical_id=int(row["logical_id"]),
+                size_bytes=int(row["size_bytes"]),
+                source="real_trace",
+                original_index=int(row["trace_id"]),
+                original_offset=0,
+                request_group=0,
+            )
+        )
+
+    return records
 
 def run_baseline(protocol_class, cfg, records, latency_model, block_size, run_tag):
     storage_cfg = prepare_storage_config(
@@ -29,10 +48,13 @@ def run_baseline(protocol_class, cfg, records, latency_model, block_size, run_ta
     )
     protocol = instantiate_protocol(protocol_class, cfg, storage_cfg, rng_seed=0)
 
-    current_time, latencies = 0.0, []
-    for rec in records:
+    current_time = 0.0
+    latencies = []
+
+    for rec in sorted(records, key=lambda r: (r.timestamp, r.trace_id)):
         start_service = max(current_time, rec.timestamp)
         queueing_delay = start_service - rec.timestamp
+
         req = Request(
             request_id=rec.trace_id,
             kind=RequestKind.REAL,
@@ -43,10 +65,17 @@ def run_baseline(protocol_class, cfg, records, latency_model, block_size, run_ta
             issued_time=start_service,
             tag="baseline",
         )
+
         res = protocol.access(req)
+        res.timing.service_start_time = start_service
+
         est = latency_model.annotate(res, queueing_delay=queueing_delay)
-        current_time = rec.timestamp + est.total_latency
+
+        service_time_excluding_queue = est.total_latency - est.queueing_delay
+        current_time = start_service + service_time_excluding_queue
+
         latencies.append(est.total_latency)
+
     return latencies
 
 def run_e4():
