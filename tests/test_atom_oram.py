@@ -30,6 +30,15 @@ def _pin_epoch(oram: AtomORAM, *, leaf: int, step: int = 0) -> None:
     oram.current_epoch_leaf = leaf
     oram.current_epoch_step = step
 
+    if step == 0:
+        oram.carried_epoch_bucket = None
+    else:
+        carried_level = oram.tree_height - step
+        oram.carried_epoch_bucket = oram._bucket_address_on_leaf(
+            leaf,
+            carried_level,
+        )
+
 
 def test_atom_oram_write_then_read_counts_match_new_epoch_semantics() -> None:
     oram = make_oram()
@@ -37,11 +46,8 @@ def test_atom_oram_write_then_read_counts_match_new_epoch_semantics() -> None:
     target_bucket = BucketAddress(level=2, index=1)
     oram.position_map[3] = target_bucket
 
-    # Reassigned leaf keeps the touched block on the target path, but the new
-    # semantics intentionally keep the touched real block in the stash instead of
-    # reinserting it into the online target bucket in the same access.
     oram._sample_leaf = lambda: 5  # type: ignore[method-assign]
-    _pin_epoch(oram, leaf=13, step=0)  # pair = (level 3 index 6, level 4 index 13)
+    _pin_epoch(oram, leaf=13, step=0)
 
     write_req = Request(
         request_id=1,
@@ -56,15 +62,20 @@ def test_atom_oram_write_then_read_counts_match_new_epoch_semantics() -> None:
     assert write_result.metrics.online_bucket_reads == 1
     assert write_result.metrics.online_bucket_writes == 0
     assert write_result.metrics.online_rtt == 1
+
     assert write_result.metrics.offline_bucket_reads == 2
-    assert write_result.metrics.offline_bucket_writes == 3
+    assert write_result.metrics.offline_bucket_writes == 2
     assert write_result.metrics.offline_rtt == 2
+
     assert write_result.metrics.path_length_touched == 1
     assert oram.position_map[3] is None
     assert 3 in oram.stash
     assert oram.pending_flush_count == 3
+    assert oram.carried_epoch_bucket == BucketAddress(level=3, index=6)
 
+    oram._sample_uniform_bucket_address = lambda: target_bucket  # type: ignore[method-assign]
     _pin_epoch(oram, leaf=13, step=1)
+
     read_req = Request(
         request_id=2,
         kind=RequestKind.REAL,
@@ -74,11 +85,14 @@ def test_atom_oram_write_then_read_counts_match_new_epoch_semantics() -> None:
     read_result = oram.access(read_req)
 
     assert read_result.data == b"hello"
+
     assert read_result.metrics.online_bucket_reads == 1
-    assert read_result.metrics.offline_bucket_reads == 2
-    assert read_result.metrics.offline_bucket_writes == 3
-    assert read_result.metrics.offline_rtt == 2
+    assert read_result.metrics.offline_bucket_reads == 1
+    assert read_result.metrics.offline_bucket_writes == 2
+    assert read_result.metrics.offline_rtt == 1
+
     assert 3 in oram.stash
+    assert oram.carried_epoch_bucket == BucketAddress(level=2, index=3)
 
 
 def test_atom_oram_epoch_pair_writeback_is_deeper_first() -> None:
@@ -88,7 +102,6 @@ def test_atom_oram_epoch_pair_writeback_is_deeper_first() -> None:
     upper_bucket = BucketAddress(level=3, index=6)
     target_bucket = BucketAddress(level=2, index=1)
 
-    # block_a fits the lower eviction bucket; block_b fits only the upper bucket.
     block_a = DataBlock(
         block_id=1,
         payload=b"a",
@@ -109,7 +122,7 @@ def test_atom_oram_epoch_pair_writeback_is_deeper_first() -> None:
     oram.debug_seed_bucket(bucket_address=upper_bucket, blocks=[block_b])
 
     oram.position_map[9] = target_bucket
-    oram._sample_leaf = lambda: 5  # touched block 9 stays in stash
+    oram._sample_leaf = lambda: 5  # type: ignore[method-assign]
     _pin_epoch(oram, leaf=13, step=0)
 
     req = Request(
@@ -123,17 +136,41 @@ def test_atom_oram_epoch_pair_writeback_is_deeper_first() -> None:
 
     assert result.metrics.online_bucket_reads == 1
     assert result.metrics.offline_bucket_reads == 2
-    assert result.metrics.offline_bucket_writes == 3
+    assert result.metrics.offline_bucket_writes == 2
     assert result.metrics.offline_rtt == 2
 
+    # First pipeline step writes only the lower bucket.
     assert oram.position_map[1] == lower_bucket
-    assert oram.position_map[2] == upper_bucket
+
+    assert oram.position_map[2] is None
+    assert 2 in oram.stash
+    assert oram.carried_epoch_bucket == upper_bucket
+
     assert oram.position_map[9] is None
     assert 9 in oram.stash
-    assert len(oram.stash) == 1
+    assert len(oram.stash) == 2
+
     assert (lower_bucket.level, lower_bucket.index) not in oram.invalidated_buckets
-    assert (upper_bucket.level, upper_bucket.index) not in oram.invalidated_buckets
+    assert (upper_bucket.level, upper_bucket.index) in oram.invalidated_buckets
     assert (target_bucket.level, target_bucket.index) not in oram.invalidated_buckets
+
+    second_target = BucketAddress(level=2, index=1)
+    req2 = Request(
+        request_id=2,
+        kind=RequestKind.VIRTUAL,
+        op=OperationType.READ,
+        address=second_target,
+    )
+    result2 = oram.access(req2)
+
+    assert result2.metrics.online_bucket_reads == 1
+    assert result2.metrics.offline_bucket_reads == 1
+    assert result2.metrics.offline_bucket_writes == 2
+    assert result2.metrics.offline_rtt == 1
+
+    assert oram.position_map[2] == upper_bucket
+    assert 2 not in oram.stash
+    assert oram.carried_epoch_bucket == BucketAddress(level=2, index=3)
 
 
 def test_atom_oram_virtual_access_executes_epoch_micro_eviction() -> None:
@@ -157,8 +194,9 @@ def test_atom_oram_virtual_access_executes_epoch_micro_eviction() -> None:
     assert result.metrics.online_bucket_writes == 0
     assert result.metrics.online_rtt == 1
     assert result.metrics.offline_bucket_reads == 2
-    assert result.metrics.offline_bucket_writes == 3
+    assert result.metrics.offline_bucket_writes == 2
     assert result.metrics.offline_rtt == 2
+    assert oram.carried_epoch_bucket == BucketAddress(level=3, index=6)
 
 
 def test_atom_oram_virtual_access_can_execute_explicit_bucket_address() -> None:
@@ -200,8 +238,9 @@ def test_atom_oram_missing_read_non_root_returns_none_with_new_counts() -> None:
     assert result.metrics.real_requests_served == 1
     assert result.metrics.online_bucket_reads == 1
     assert result.metrics.offline_bucket_reads == 2
-    assert result.metrics.offline_bucket_writes == 3
+    assert result.metrics.offline_bucket_writes == 2
     assert result.metrics.offline_rtt == 2
+    assert oram.carried_epoch_bucket == BucketAddress(level=3, index=6)
 
 
 def make_file_oram(tmp_path, seed: int = 7) -> AtomORAM:
@@ -373,3 +412,43 @@ def test_atom_oram_remote_lower_half_online_read_keeps_network_cost() -> None:
     assert res.metrics.online_bucket_reads == 1
     assert res.metrics.online_bytes_down == oram.backend.bucket_storage_bytes
     assert res.metrics.online_rtt == 1
+
+def test_atom_oram_pipeline_io_counts_across_one_epoch() -> None:
+    oram = make_oram()
+
+    # Use a fixed target bucket that does not overlap the epoch path for leaf 13.
+    target_bucket = BucketAddress(level=4, index=0)
+    _pin_epoch(oram, leaf=13, step=0)
+
+    expected = [
+        # first step: read L and L-1, write L and target
+        (2, 2, 2, BucketAddress(level=3, index=6)),
+        # middle step: read new upper, write carried/lower and target
+        (1, 2, 1, BucketAddress(level=2, index=3)),
+        # middle step
+        (1, 2, 1, BucketAddress(level=1, index=1)),
+        # last step: read root, write level 1, root, and target
+        (1, 3, 1, None),
+    ]
+
+    for i, (expected_reads, expected_writes, expected_rtt, expected_carry) in enumerate(expected):
+        req = Request(
+            request_id=100 + i,
+            kind=RequestKind.VIRTUAL,
+            op=OperationType.READ,
+            address=target_bucket,
+        )
+        result = oram.access(req)
+
+        assert result.metrics.online_bucket_reads == 1
+        assert result.metrics.online_bucket_writes == 0
+        assert result.metrics.online_rtt == 1
+
+        assert result.metrics.offline_bucket_reads == expected_reads
+        assert result.metrics.offline_bucket_writes == expected_writes
+        assert result.metrics.offline_rtt == expected_rtt
+        assert oram.carried_epoch_bucket == expected_carry
+
+    assert oram.current_epoch_leaf is None
+    assert oram.current_epoch_step == 0
+    assert oram.pending_flush_count == 0

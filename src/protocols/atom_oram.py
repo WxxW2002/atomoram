@@ -51,6 +51,8 @@ class AtomORAM(AbstractORAM):
         self.current_epoch_leaf: Optional[int] = None
         self.current_epoch_step: int = 0
 
+        self.carried_epoch_bucket: Optional[BucketAddress] = None
+
     def reset(self) -> None:
         self.backend.reset()
         self.position_map = [None] * self.logical_block_capacity
@@ -58,6 +60,7 @@ class AtomORAM(AbstractORAM):
         self.invalidated_buckets.clear()
         self.current_epoch_leaf = None
         self.current_epoch_step = 0
+        self.carried_epoch_bucket = None
 
     def _local_cutoff_level(self) -> int:
         if self.atom_config.local_cutoff_level is not None:
@@ -218,10 +221,15 @@ class AtomORAM(AbstractORAM):
                 bucket_address=target_bucket,
             )
 
+        protected_block_ids: set[int] = set()
+        if request.kind == RequestKind.REAL and logical_id is not None:
+            protected_block_ids.add(logical_id)
+
         maintenance_executed = self._run_one_epoch_micro_eviction(
             target_bucket=target_bucket,
             target_bucket_resident_blocks=target_bucket_resident_blocks,
             metrics=metrics,
+            protected_block_ids=protected_block_ids,
         )
 
         metrics.path_length_touched = 1
@@ -238,6 +246,7 @@ class AtomORAM(AbstractORAM):
             f"epoch_leaf={self.current_epoch_leaf}; "
             f"epoch_step={self.current_epoch_step}; "
             f"epoch_remaining={self.pending_flush_count}; "
+            f"carried_epoch_bucket={self.carried_epoch_bucket}; "
             f"offline_micro_eviction_executed={maintenance_executed}"
         )
         return result
@@ -294,6 +303,10 @@ class AtomORAM(AbstractORAM):
     ) -> Bucket:
         bucket = self.backend.read_bucket(address)
         self._record_atom_bucket_read(metrics, address, online=online)
+
+        if self._bucket_key(address) in self.invalidated_buckets:
+            return self.backend.make_empty_bucket(address)
+
         return bucket
 
     def _read_bucket_into_stash(
@@ -361,10 +374,25 @@ class AtomORAM(AbstractORAM):
 
         return resident_blocks
 
+    def _stage_resident_blocks_into_stash(
+        self,
+        *,
+        blocks: list[DataBlock],
+        metrics: AccessMetrics,
+    ) -> None:
+        for block in blocks:
+            if block.block_id is None or block.is_dummy:
+                continue
+            self.stash[block.block_id] = block.clone()
+            self.position_map[block.block_id] = None
+
+        self._update_stash_peak(metrics, len(self.stash))
+
     def _ensure_epoch(self) -> None:
         if self.current_epoch_leaf is None or self.current_epoch_step >= self.tree_height:
             self.current_epoch_leaf = self._sample_leaf()
             self.current_epoch_step = 0
+            self.carried_epoch_bucket = None
 
     def _bucket_address_on_leaf(self, leaf: int, level: int) -> BucketAddress:
         index = leaf >> (self.tree_height - level)
@@ -387,43 +415,105 @@ class AtomORAM(AbstractORAM):
         target_bucket: BucketAddress,
         target_bucket_resident_blocks: list[DataBlock],
         metrics: AccessMetrics,
+        protected_block_ids: Optional[set[int]] = None,
     ) -> bool:
-        upper_bucket, lower_bucket = self._current_epoch_pair()
+        if self.tree_height == 0:
+            self._write_bucket_direct(
+                address=target_bucket,
+                blocks=target_bucket_resident_blocks,
+                metrics=metrics,
+            )
+            return False
+
+        self._ensure_epoch()
+        assert self.current_epoch_leaf is not None
+
+        step = self.current_epoch_step
+        lower_level = self.tree_height - step
+        upper_level = lower_level - 1
+
+        lower_bucket = self._bucket_address_on_leaf(self.current_epoch_leaf, lower_level)
+        upper_bucket = self._bucket_address_on_leaf(self.current_epoch_leaf, upper_level)
 
         target_key = self._bucket_key(target_bucket)
         lower_key = self._bucket_key(lower_bucket)
         upper_key = self._bucket_key(upper_bucket)
 
-        if lower_key != target_key:
-            self._read_bucket_into_stash(address=lower_bucket, metrics=metrics, online=False)
+        is_first_step = step == 0
+        is_last_step = step == self.tree_height - 1
 
-        if upper_key != target_key and upper_key != lower_key:
-            self._read_bucket_into_stash(address=upper_bucket, metrics=metrics, online=False)
+        if is_first_step:
+            self.carried_epoch_bucket = None
+        else:
+            if self.carried_epoch_bucket != lower_bucket:
+                raise RuntimeError(
+                    "Invalid AtomORAM epoch pipeline state: "
+                    f"expected carried bucket {lower_bucket}, "
+                    f"found {self.carried_epoch_bucket}."
+                )
 
-        if lower_key != target_key:
-            self._write_bucket_from_stash(
-                address=lower_bucket,
+        # First step reads both L and L-1.
+        if is_first_step:
+            buckets_to_read = [lower_bucket, upper_bucket]
+        else:
+            buckets_to_read = [upper_bucket]
+
+        # Non-final steps write only the lower/carried bucket and keep upper.
+        if is_last_step:
+            buckets_to_write = [lower_bucket, upper_bucket]
+        else:
+            buckets_to_write = [lower_bucket]
+
+        edge_keys = {lower_key, upper_key}
+        target_is_epoch_bucket = target_key in edge_keys
+
+        if target_is_epoch_bucket:
+            self._stage_resident_blocks_into_stash(
+                blocks=target_bucket_resident_blocks,
                 metrics=metrics,
-                exclude_block_ids=None,
+            )
+            target_bucket_resident_blocks = []
+            self.invalidated_buckets.add(target_key)
+
+        for bucket in buckets_to_read:
+            bucket_key = self._bucket_key(bucket)
+            if bucket_key == target_key:
+                self.invalidated_buckets.add(bucket_key)
+                continue
+
+            self._read_bucket_into_stash(
+                address=bucket,
+                metrics=metrics,
+                online=False,
             )
 
-        if upper_key != target_key and upper_key != lower_key:
+        for bucket in buckets_to_write:
+            bucket_key = self._bucket_key(bucket)
+
+            exclude_ids = None
+            if bucket_key == target_key and protected_block_ids:
+                exclude_ids = protected_block_ids
+
             self._write_bucket_from_stash(
-                address=upper_bucket,
+                address=bucket,
                 metrics=metrics,
-                exclude_block_ids=None,
+                exclude_block_ids=exclude_ids,
             )
 
-        self._write_bucket_direct(
-            address=target_bucket,
-            blocks=target_bucket_resident_blocks,
-            metrics=metrics,
-        )
+        if not target_is_epoch_bucket:
+            self._write_bucket_direct(
+                address=target_bucket,
+                blocks=target_bucket_resident_blocks,
+                metrics=metrics,
+            )
 
-        self.current_epoch_step += 1
-        if self.current_epoch_step >= self.tree_height:
+        if is_last_step:
             self.current_epoch_leaf = None
             self.current_epoch_step = 0
+            self.carried_epoch_bucket = None
+        else:
+            self.current_epoch_step += 1
+            self.carried_epoch_bucket = upper_bucket
 
         return True
 

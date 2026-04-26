@@ -137,10 +137,12 @@ def test_atom_event_runner_keeps_atom_metrics_shape() -> None:
     row = df.iloc[0]
     assert row["protocol"] == "atom_oram"
     assert int(row["online_bucket_reads"]) == 1
-    assert int(row["offline_bucket_reads"]) == 2
-    assert int(row["offline_bucket_writes"]) in {2, 3}
+
+    assert int(row["offline_bucket_reads"]) in {1, 2}
+    assert int(row["offline_bucket_writes"]) in {1, 2}
+
     assert int(row["online_rtt"]) == 1
-    assert int(row["offline_rtt"]) == 2
+    assert int(row["offline_rtt"]) == int(row["offline_bucket_reads"])
 
 
 def test_atom_event_runner_visible_latency_uses_online_only() -> None:
