@@ -11,7 +11,7 @@ from src.common.latency_model import LatencyEstimate, LatencyModel
 from src.common.types import BucketAddress, BlockAddress, OperationType, Request, RequestKind
 from src.traces.schema import TraceRecord
 
-EPS = 1e-12
+time_eps = 1e-12
 
 @dataclass(slots=True)
 class CompensationObligation:
@@ -83,7 +83,7 @@ class AtomEventRunner:
         while True:
             while (
                 next_arrival_idx < len(ordered)
-                and ordered[next_arrival_idx].timestamp <= tick_time + EPS
+                and ordered[next_arrival_idx].timestamp <= tick_time + time_eps
             ):
                 pending_real.append(ordered[next_arrival_idx])
                 next_arrival_idx += 1
@@ -92,9 +92,9 @@ class AtomEventRunner:
                 burst_tail_added
                 and compensation is None
                 and not pending_real
-                and tick_time >= next_real_release_time
+                and tick_time + time_eps >= next_real_release_time
             ):
-                burst_tail_added = False
+                burst_tail_added = False        
 
             # Compensation has priority over all real requests. 
             if compensation is not None:
@@ -153,11 +153,7 @@ class AtomEventRunner:
                 tick_time += tick_interval
                 continue    
 
-            # No uncompensated real request remains, so a real request may be
-            # served on this timer tick.  A dummy address is still generated for
-            # the tick; the real request substitutes for it, and that generated
-            # dummy address becomes the compensation obligation.
-            if pending_real and tick_time >= next_real_release_time:
+            if pending_real and tick_time + time_eps >= next_real_release_time:
                 generated_dummy = self._sample_virtual_bucket(protocol)
                 queue_length_before = len(pending_real)
                 record = pending_real.popleft()
@@ -178,12 +174,22 @@ class AtomEventRunner:
                 result.timing.service_start_time = tick_time
 
                 queueing_delay = tick_time - record.timestamp
-                if queueing_delay < 0:
-                    raise ValueError("Negative queueing delay detected.")
+                if queueing_delay < -time_eps:
+                    raise ValueError(
+                        "Negative queueing delay detected: "
+                        f"tick_time={tick_time!r}, "
+                        f"arrival_time={record.timestamp!r}, "
+                        f"diff={queueing_delay!r}, "
+                        f"tick_index={tick_index}, "
+                        f"next_real_release_time={next_real_release_time!r}, "
+                        f"pending_real_len={len(pending_real)}"
+                    )
+
+                queueing_delay = max(0.0, queueing_delay)
 
                 result.metrics.queue_length_before = queue_length_before
                 result.metrics.queue_length_after = queue_length_after
-                result.metrics.fallback_flag = queueing_delay > 0
+                result.metrics.fallback_flag = queueing_delay > time_eps
                 result.metrics.virtual_ticks_generated = 1
                 result.metrics.virtual_requests_executed = 0
                 result.metrics.real_requests_served = 1
@@ -244,7 +250,7 @@ class AtomEventRunner:
                 tick_time += tick_interval
                 continue
 
-            if pending_real and tick_time < next_real_release_time:
+            if pending_real and tick_time + time_eps < next_real_release_time:
                 tick_time = next_real_release_time
                 continue
 
