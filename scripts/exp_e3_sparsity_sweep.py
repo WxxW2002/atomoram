@@ -107,6 +107,9 @@ def run_e3():
         marker="o",
         label="Mean Latency",
         linewidth=2,
+        color="tab:orange",
+        linestyle="--",
+        alpha=0.9,
     )
     line2 = ax1.plot(
         df_plot["Load_Intensity"],
@@ -114,7 +117,9 @@ def run_e3():
         marker="^",
         label="P95 Latency",
         linewidth=2,
+        alpha=0.9,
         linestyle="--",
+        color="tab:orange",
     )
 
     boundary = ax1.axvline(
@@ -132,6 +137,7 @@ def run_e3():
         marker="s",
         label="Max Queue",
         linewidth=2,
+        color="tab:blue",
         alpha=0.7,
     )
 

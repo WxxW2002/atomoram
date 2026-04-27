@@ -34,7 +34,7 @@ def run_e1():
         ax.plot(sorted_data, yvals, label=label, linewidth=2)
 
     ax.set_xscale('symlog', linthresh=0.1)
-    ax.axvline(x=1, color='red', linestyle=':', label=rf'$\lambda_1 = 1.0$')
+    ax.axvline(x=1, color='red', linestyle=':', label=rf'$\alpha = 1.0$')
 
     ax.set_xlim(-0.01, 10000)
     ax.set_ylim(0, 1.05)
