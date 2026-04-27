@@ -15,7 +15,6 @@ os.makedirs('artifacts/csv', exist_ok=True)
 plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42, 'axes.linewidth': 1.2})
 
 def generate_synthetic_trace(alpha, reference_gap_sec, block_size, num_reqs=800):
-    """Generate a trace with alpha = Delta t_real / (L * t_virt)."""
     dt = alpha * reference_gap_sec
 
     return [
@@ -97,7 +96,7 @@ def run_e3():
     fig, ax1 = plt.subplots(figsize=(8, 5))
 
     ax1.set_xlabel(
-        r"Workload Intensity $\rho = 1/\alpha = L \cdot t_{virt} / \Delta t_{real}$"
+        r"$\rho = 1/\alpha = L \cdot t_{\text{tick}} / \Delta t_{\text{real}}$"
     )
     ax1.set_ylabel("End-to-End Latency (s)")
 
