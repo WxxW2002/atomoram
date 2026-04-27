@@ -96,7 +96,7 @@ def run_e3():
     fig, ax1 = plt.subplots(figsize=(8, 5))
 
     ax1.set_xlabel(
-        r"$\rho = 1/\alpha = L \cdot t_{\text{tick}} / \Delta t_{\text{real}}$"
+        r"Workload Intensity $\rho = 1/\alpha = L \cdot t_{\text{tick}} / \Delta t_{\text{real}}$"
     )
     ax1.set_ylabel("End-to-End Latency (s)")
 

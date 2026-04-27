@@ -38,7 +38,7 @@ def run_e1():
 
     ax.set_xlim(-0.01, 10000)
     ax.set_ylim(0, 1.05)
-    ax.set_xlabel(r'$\alpha = \Delta t_{\text{real}} / (L \cdot t_{\text{tick}})$')
+    ax.set_xlabel(r'Sparse Slack $\alpha = \Delta t_{\text{real}} / (L \cdot t_{\text{tick}})$')
     ax.set_ylabel('CDF')
     
     ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
