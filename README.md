@@ -84,8 +84,12 @@ The evaluation compares AtomORAM with the following baselines:Non-recursive Path
 ### Experiment
 The following commands will produce the results of the experiment. All generated figures (PDF) will be saved in artifacts/figs/ and the corresponding raw data (CSV) in artifacts/csv/.
 
----
+If you want to reproduce all the results together, you can run the following shell script:
+```bash
+./run_experiments.sh
+```
 
+---
 
 #### Figure 3: Mechanism Validation (Online Server I/O & Latency)
 ```bash
