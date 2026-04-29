@@ -6,6 +6,7 @@ from typing import Optional
 
 @dataclass(slots=True)
 class AccessMetrics:
+    """Traffic, server-I/O, queueing, and stash counters for one access."""
     protocol: str
 
     # Bucket-level server I/O

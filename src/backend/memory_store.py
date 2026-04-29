@@ -8,6 +8,7 @@ from src.common.types import Bucket
 
 class InMemoryBucketStore(AbstractBucketStore):
     def __init__(self) -> None:
+        """Initialize an empty in-memory bucket dictionary."""
         self._buckets: dict[int, Bucket] = {}
 
     def reset(self) -> None:

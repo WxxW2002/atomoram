@@ -4,7 +4,7 @@ from src.common.config import StorageConfig
 from src.common.types import BlockAddress, OperationType, Request, RequestKind
 from src.protocols.path_oram import PathORAM
 
-
+# construct a small Path ORAM instance for tests
 def make_oram(seed: int = 7) -> PathORAM:
     config = StorageConfig(
         block_size=32,

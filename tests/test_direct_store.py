@@ -2,7 +2,7 @@ from src.common.config import StorageConfig
 from src.common.types import BlockAddress, OperationType, Request, RequestKind
 from src.protocols.direct_store import DirectStore
 
-
+# construct a direct-store baseline instance for tests
 def make_store() -> DirectStore:
     config = StorageConfig(
         block_size=16,

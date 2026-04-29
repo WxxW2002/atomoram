@@ -6,11 +6,11 @@ from typing import Optional
 from src.common.types import OperationType
 from src.traces.schema import TraceRecord
 
-
+# sample a read or write operation from a configured write ratio
 def _sample_operation(rng: random.Random, read_ratio: float) -> OperationType:
     return OperationType.READ if rng.random() < read_ratio else OperationType.WRITE
 
-
+# generate a trace with fixed inter-arrival time
 def generate_constant_interval_trace(
     *,
     num_requests: int,
@@ -51,7 +51,7 @@ def generate_constant_interval_trace(
 
     return records
 
-
+# generate a trace using the sparsity parameterization
 def generate_sparse_trace(
     *,
     num_requests: int,
@@ -87,7 +87,7 @@ def generate_sparse_trace(
         request_size_bytes=request_size_bytes,
     )
 
-
+# generate two dense bursts separated by an idle gap
 def generate_two_burst_trace(
     *,
     burst1_size: int,

@@ -33,6 +33,7 @@ class BucketAddress:
     index: int
 
 
+#  access request with timing, operation, address, and optional data
 @dataclass(slots=True)
 class Request:
     request_id: int

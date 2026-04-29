@@ -6,7 +6,7 @@ from typing import Optional
 from src.common.metrics import AccessResult
 from src.common.types import Bucket, Request
 
-
+# minimal bucket-store interface used by tree backends
 class AbstractBucketStore(ABC):
     @abstractmethod
     def reset(self) -> None:
@@ -32,19 +32,9 @@ class AbstractORAM(ABC):
 
     @abstractmethod
     def access(self, request: Request) -> AccessResult:
-        """
-        Execute a single protocol-visible access.
-        Path/Ring/DirectStore mainly use this entry.
-        AtomORAM can also expose it for direct protocol-level tests.
-        """
         pass
 
     def tick(self, now: float) -> Optional[AccessResult]:
-        """
-        Timer-driven service hook.
-        Path/Ring/DirectStore may simply return None.
-        AtomORAM will override this.
-        """
         return None
 
     def enqueue(self, request: Request) -> None:

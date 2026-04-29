@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any
-
 import pandas as pd
+from dataclasses import dataclass, field
 
+from typing import Any
 from src.common.types import OperationType
 
-
+# normalized trace event consumed by experiment runners
 @dataclass(slots=True)
 class TraceRecord:
     trace_id: int

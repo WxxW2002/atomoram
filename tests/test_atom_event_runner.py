@@ -1,19 +1,12 @@
 import pytest
 
-from src.common.config import (
-    AtomConfig,
-    CryptoConfig,
-    ExperimentConfig,
-    NetworkConfig,
-    ServerIOConfig,
-    StorageConfig,
-)
+from src.common.config import AtomConfig, CryptoConfig, ExperimentConfig, NetworkConfig, ServerIOConfig, StorageConfig
 from src.common.latency_model import LatencyModel
 from src.protocols.atom_oram import AtomORAM
 from src.sim.atom_event_runner import AtomEventRunner
 from src.traces.synthetic import generate_constant_interval_trace
 
-
+# construct a small AtomORAM environment for scheduler regression tests
 def make_env(tick_interval_sec: float = 1.0):
     storage = StorageConfig(
         block_size=32,

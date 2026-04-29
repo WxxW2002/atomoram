@@ -50,7 +50,7 @@ def prepare_storage_config(
         data_dir=str(run_dir),
     )
 
-
+# instantiate a protocol class with the configuration it expects
 def instantiate_protocol(
     protocol_cls: Type,
     cfg: ExperimentConfig,

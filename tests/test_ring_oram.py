@@ -5,6 +5,7 @@ from src.common.types import BlockAddress, OperationType, Request, RequestKind
 from src.protocols.ring_oram import RingORAM
 
 
+# construct a small Ring ORAM instance for tests
 def make_oram(
     *,
     seed: int = 7,

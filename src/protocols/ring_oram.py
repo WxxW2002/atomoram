@@ -197,6 +197,7 @@ class RingORAM(AbstractORAM):
     def _sample_leaf(self) -> int:
         return self._rng.randrange(self.leaf_count)
 
+    # read selected slots along the path and update per-bucket slot metadata
     def _read_ring_path(
         self,
         *,
@@ -204,6 +205,7 @@ class RingORAM(AbstractORAM):
         logical_id: int,
         metrics: AccessMetrics,
     ) -> Optional[DataBlock]:
+
         path = self.backend.path_to_leaf(leaf)
         found_block: Optional[DataBlock] = None
 
@@ -211,7 +213,7 @@ class RingORAM(AbstractORAM):
             flat_index = self.backend.flatten_address(address)
             slots = self.address_map[flat_index]
 
-            # Actual bucket touch happens, but communication cost is not a full-bucket download.
+            # actual bucket touch happens
             _ = self.backend.read_bucket(address)
             metrics.record_bucket_read(
                 online=True,
@@ -246,6 +248,7 @@ class RingORAM(AbstractORAM):
         metrics.online_bytes_down += self.storage_config.block_size
         return found_block
 
+    # perform a Ring ORAM path eviction from the stash
     def _evict_path(self, *, metrics: AccessMetrics) -> None:
         leaf = self._g_to_l(self.big_g)
         self.big_g += 1
@@ -350,9 +353,6 @@ class RingORAM(AbstractORAM):
         )
 
     def _g_to_l(self, big_g: int) -> int:
-        """
-        Same mapping logic as V-ORAM's BTree.g_to_l().
-        """
         tmp_l = big_g % self.leaf_count
         leaf = 0
         for _ in range(self.num_levels - 1):

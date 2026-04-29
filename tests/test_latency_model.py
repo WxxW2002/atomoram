@@ -48,21 +48,13 @@ def test_latency_model_formula() -> None:
     estimate = model.estimate(metrics, queueing_delay=0.25)
 
     assert abs(estimate.online_network_time - 2.0) < 1e-12
-
     assert abs(estimate.offline_network_time - 1.0) < 1e-12
-
     assert abs(estimate.online_server_io_time - 0.5) < 1e-12
-
     assert abs(estimate.offline_server_io_time - 1.0) < 1e-12
-
     assert abs(estimate.online_crypto_time - 0.2) < 1e-12
-
     assert abs(estimate.offline_crypto_time - 0.175) < 1e-12
-
     assert abs(estimate.online_latency - 2.95) < 1e-12
-
     assert abs(estimate.offline_latency - 2.175) < 1e-12
-
     assert abs(estimate.total_latency - 5.125) < 1e-12
 
 

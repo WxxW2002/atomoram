@@ -17,7 +17,7 @@ from src.common.types import (
 
 class DirectStore(AbstractORAM):
     """
-    Non-ORAM lower bound.
+    Non-ORAM lower bound implementation.
     """
 
     def __init__(self, config: StorageConfig) -> None:

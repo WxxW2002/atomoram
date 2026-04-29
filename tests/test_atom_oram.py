@@ -9,7 +9,7 @@ from src.common.types import (
 )
 from src.protocols.atom_oram import AtomORAM
 
-
+# construct a small in-memory AtomORAM instance for tests
 def make_oram(seed: int = 7) -> AtomORAM:
     storage = StorageConfig(
         block_size=32,
@@ -139,7 +139,7 @@ def test_atom_oram_epoch_pair_writeback_is_deeper_first() -> None:
     assert result.metrics.offline_bucket_writes == 2
     assert result.metrics.offline_rtt == 2
 
-    # First pipeline step writes only the lower bucket.
+    # first step writes only the lower bucket.
     assert oram.position_map[1] == lower_bucket
 
     assert oram.position_map[2] is None

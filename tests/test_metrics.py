@@ -1,6 +1,5 @@
 from src.common.metrics import AccessMetrics, TimingRecord
 
-
 def test_access_metrics_addition_and_bool_or() -> None:
     lhs = AccessMetrics(protocol="atom_oram")
     lhs.online_bucket_reads = 1

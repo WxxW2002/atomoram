@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 
-
+# storage-layout parameters shared by all protocols
 @dataclass(slots=True)
 class StorageConfig:
     block_size: int = 4096
@@ -16,7 +16,7 @@ class StorageConfig:
     data_dir: str = "data"
     data_file_size: int = 1 << 30
 
-
+# network bandwidth and round-trip parameters
 @dataclass(slots=True)
 class NetworkConfig:
     down_bw_bytes_per_sec: float = 10 * 2**20
@@ -29,7 +29,7 @@ class CryptoConfig:
     enc_bytes_per_sec: float = 2e9
     dec_bytes_per_sec: float = 2e9
 
-
+# per-bucket server I/O service times
 @dataclass(slots=True)
 class ServerIOConfig:
     bucket_read_sec: float = 5e-3
@@ -41,7 +41,7 @@ class RingConfig:
     s_num: int = 12
     a_num: int = 8
 
-
+# AtomORAM scheduling parameters
 @dataclass(slots=True)
 class AtomConfig:
     lambda1: float = 2.0
@@ -83,6 +83,7 @@ class ExperimentConfig:
             raw = yaml.safe_load(f) or {}
         return cls.from_dict(raw)
 
+    # load the default experiment configuration in scripts/default.yaml
     @classmethod
     def load_default(cls) -> "ExperimentConfig":
         repo_root = Path(__file__).resolve().parents[2]

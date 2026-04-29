@@ -22,7 +22,7 @@ ALICLOUD_COLUMNS = [
 
 ALICLOUD_TIME_UNIT = 1e6
 
-
+# load and normalize AliCloud trace records
 def load_alicloud_trace(
     path: str | Path,
     *,

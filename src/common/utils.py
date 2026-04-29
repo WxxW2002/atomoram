@@ -80,7 +80,7 @@ def path_to_leaf(tree_height: int, leaf: int) -> list[BucketAddress]:
         for level in range(tree_height + 1)
     ]
 
-
+# Check whether a bucket lies on a specified leaf path
 def is_bucket_on_leaf_path(
     tree_height: int,
     address: BucketAddress,

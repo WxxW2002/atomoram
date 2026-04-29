@@ -45,6 +45,7 @@ class PathORAM(AbstractORAM):
         self.stash.clear()
         self.position_map = [None] * self.logical_block_capacity
 
+    # execute a full Path ORAM access with path read and greedy writeback
     def access(self, request: Request) -> AccessResult:
         if request.address is None:
             raise ValueError("PathORAM.access() requires request.address.")

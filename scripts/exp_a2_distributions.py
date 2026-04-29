@@ -24,7 +24,7 @@ plt.rcParams.update(
     }
 )
 
-
+# load the trace subset used for distributional measurements
 def load_trace(file_path, limit=5000):
     from src.traces.schema import normalize_operation
 
@@ -48,7 +48,7 @@ def load_trace(file_path, limit=5000):
 
     return records
 
-
+#Prime the protocol state before collecting distribution statistics
 def warmup_protocol(protocol, runner, block_size, reference_gap_sec, num_blocks=50000):
     records = []
     for i in range(num_blocks):

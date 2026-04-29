@@ -11,6 +11,7 @@ from src.sim.runner import TraceRunner
 from src.traces.synthetic import generate_constant_interval_trace
 
 
+# construct a minimal experiment configuration for runner tests
 def make_config() -> ExperimentConfig:
     return ExperimentConfig(
         storage=StorageConfig(
@@ -47,7 +48,7 @@ def test_trace_runner_serializes_requests_and_records_queueing() -> None:
         address_space=4,
         interval_sec=0.0,
         seed=1,
-        read_ratio=0.0,  # both writes
+        read_ratio=0.0,
         request_size_bytes=16,
     )
 

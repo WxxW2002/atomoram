@@ -9,11 +9,12 @@ from src.common.latency_model import LatencyEstimate, LatencyModel
 from src.common.types import BlockAddress, OperationType, Request, RequestKind
 from src.traces.schema import TraceRecord
 
-
+# generic trace runner for protocols that handle requests synchronously
 @dataclass(slots=True)
 class TraceRunner:
     latency_model: LatencyModel
 
+    # replay trace records in timestamp order and return per-access measurements
     def run(
         self,
         *,
@@ -75,6 +76,7 @@ class TraceRunner:
         fill_byte = record.logical_id % 251
         return bytes([fill_byte]) * payload_len
 
+    # serialize a protocol result into an output row
     @staticmethod
     def _make_result_row(
         *,

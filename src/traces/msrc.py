@@ -24,7 +24,7 @@ MSRC_COLUMNS = [
 
 MSRC_TIME_UNIT = 1e7
 
-
+# load and normalize MSRC trace records
 def load_msrc_trace(
     path: str | Path,
     *,
@@ -41,7 +41,7 @@ def load_msrc_trace(
         nrows=max_rows,
     )
 
-    # Drop duplicated header row if the source file already contains a header.
+    # Drop duplicated header row if the source file already contains one
     if not df.empty and str(df.iloc[0]["Timestamp"]).strip().lower() == "timestamp":
         df = df.iloc[1:].reset_index(drop=True)
 

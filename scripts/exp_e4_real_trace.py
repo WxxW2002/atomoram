@@ -16,6 +16,7 @@ os.makedirs('artifacts/figs', exist_ok=True)
 os.makedirs('artifacts/csv', exist_ok=True)
 plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42, 'axes.linewidth': 1.2})
 
+# load the real-trace subset
 def load_trace(file_path, limit=2000):
     from src.traces.schema import normalize_operation
 
@@ -39,6 +40,7 @@ def load_trace(file_path, limit=2000):
 
     return records
 
+# run protocols on the real trace
 def run_baseline(protocol_class, cfg, records, latency_model, block_size, run_tag):
     storage_cfg = prepare_storage_config(
         cfg.storage,

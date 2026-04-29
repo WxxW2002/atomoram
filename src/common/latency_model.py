@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from src.common.config import ExperimentConfig
 from src.common.metrics import AccessMetrics, AccessResult, TimingRecord
 
-
+# modeled latency decomposition for one access
 @dataclass(slots=True)
 class LatencyEstimate:
     online_network_time: float
@@ -38,7 +38,7 @@ class LatencyEstimate:
 
 class LatencyModel:
     """
-    V-ORAM-style modeled latency with an explicit server bucket-I/O term.
+    modeled latency according to the paper:
 
     Online latency:
         queueing_delay

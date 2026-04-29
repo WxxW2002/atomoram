@@ -5,7 +5,9 @@ from src.common.config import StorageConfig
 from src.common.types import Bucket, BucketAddress, DataBlock
 
 
+# construct an tree backend for tests
 def make_memory_backend() -> TreeBackend:
+    """."""
     config = StorageConfig(
         block_size=16,
         bucket_size=4,
@@ -16,7 +18,7 @@ def make_memory_backend() -> TreeBackend:
     )
     return TreeBackend(config=config)
 
-
+# construct a file-backed tree backend for tests.
 def make_file_backend(tmp_path: Path, *, data_file_size: int = 512) -> TreeBackend:
     config = StorageConfig(
         block_size=16,
@@ -314,7 +316,7 @@ def test_file_backend_last_file_last_bucket_round_trip(tmp_path):
         tree_height=3,
         use_file_backend=True,
         data_dir=str(tmp_path),
-        data_file_size=300,   # 故意设置很小，强制分多个文件
+        data_file_size=300,
     )
     backend = TreeBackend(config=cfg)
 

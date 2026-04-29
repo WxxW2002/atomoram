@@ -13,6 +13,7 @@ from src.traces.schema import TraceRecord
 
 time_eps = 1e-12
 
+# state for compensation
 @dataclass(slots=True)
 class CompensationObligation:
     substituted_dummy: BucketAddress
@@ -23,6 +24,7 @@ class CompensationObligation:
     tail_applies: bool
 
 
+# Trace runner for AtomORAM timer ticks and compensation scheduling
 @dataclass(slots=True)
 class AtomEventRunner:
     latency_model: LatencyModel
@@ -46,9 +48,6 @@ class AtomEventRunner:
         max_idle_ticks_after_last_arrival: int = 0,
         record_virtuals: Optional[bool] = None,
     ) -> pd.DataFrame:
-        # required_virtual_ticks is kept only for API compatibility with the
-        # experiment scripts.  The compensation scheduler no longer forces a
-        # fixed lambda*logN number of virtual accesses after every real access.
         _ = required_virtual_ticks
 
         ordered = sorted(records, key=lambda r: (r.timestamp, r.trace_id))
@@ -323,6 +322,7 @@ class AtomEventRunner:
             )
         return sampler()
 
+    # execute one dummy access and annotate its modeled latency
     def _execute_virtual_access(
         self,
         *,

@@ -24,7 +24,7 @@ class FileBucketStore(AbstractBucketStore):
     Each block is serialized as:
       [32-byte header][payload padded to block_size]
 
-    Header format (<qqIB11x):
+    Header format:
       - block_id: int64
       - leaf: int64
       - logical_payload_size: uint32
@@ -93,6 +93,7 @@ class FileBucketStore(AbstractBucketStore):
             f.seek(byte_offset)
             f.write(raw)
 
+    # return the number of bucket slots assigned to a data file
     def _buckets_in_file(self, file_index: int) -> int:
         if file_index < 0 or file_index >= self.total_files:
             return 0
@@ -120,6 +121,7 @@ class FileBucketStore(AbstractBucketStore):
                 f.seek(logical_size - 1)
                 f.write(b"\0")
 
+    # map a flat bucket index to its file path, local index, and byte offset
     def _locate(self, flat_index: int) -> tuple[Path, int]:
         if flat_index < 0 or flat_index >= self.bucket_count:
             raise ValueError(f"flat_index {flat_index} out of range.")
@@ -131,6 +133,7 @@ class FileBucketStore(AbstractBucketStore):
         return file_path, byte_offset
 
     def _read_raw_bucket(self, flat_index: int) -> Optional[bytes]:
+        """Read a raw serialized bucket from a fixed file offset."""
         file_path, byte_offset = self._locate(flat_index)
         with file_path.open("rb") as f:
             f.seek(byte_offset)
@@ -139,7 +142,6 @@ class FileBucketStore(AbstractBucketStore):
         if len(raw) != self.bucket_storage_bytes:
             return None
 
-        # 稀疏文件中尚未物化写入的 bucket 视为空
         if raw == b"\0" * self.bucket_storage_bytes:
             return None
 

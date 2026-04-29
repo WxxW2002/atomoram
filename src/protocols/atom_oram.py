@@ -8,19 +8,11 @@ from src.common.config import AtomConfig, StorageConfig
 from src.common.interfaces import AbstractORAM
 from src.common.metrics import AccessMetrics, AccessResult, TimingRecord
 from src.common.utils import truncate_payload
-from src.common.types import (
-    Bucket,
-    BucketAddress,
-    DataBlock,
-    OperationType,
-    ProtocolKind,
-    Request,
-    RequestKind,
-    BlockAddress,
-)
+from src.common.types import Bucket, BucketAddress, DataBlock, OperationType, ProtocolKind, Request, RequestKind, BlockAddress
 
 
 class AtomORAM(AbstractORAM):
+    # initialize AtomORAM state, position map, stash, and epoch variables
     def __init__(
         self,
         storage_config: StorageConfig,
@@ -122,6 +114,7 @@ class AtomORAM(AbstractORAM):
         if stash_size > current_peak:
             metrics.stash_peak_during_access = stash_size
 
+    # execute one real or virtual access and advance one offline micro-eviction step
     def access(self, request: Request) -> AccessResult:
         metrics = AccessMetrics(protocol=ProtocolKind.ATOM.value)
         timing = TimingRecord(
@@ -452,13 +445,13 @@ class AtomORAM(AbstractORAM):
                     f"found {self.carried_epoch_bucket}."
                 )
 
-        # First step reads both L and L-1.
+        # first step reads both L and L-1.
         if is_first_step:
             buckets_to_read = [lower_bucket, upper_bucket]
         else:
             buckets_to_read = [upper_bucket]
 
-        # Non-final steps write only the lower/carried bucket and keep upper.
+        # middle steps write only the lower/carried bucket and keep upper.
         if is_last_step:
             buckets_to_write = [lower_bucket, upper_bucket]
         else:

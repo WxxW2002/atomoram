@@ -14,6 +14,7 @@ os.makedirs('artifacts/figs', exist_ok=True)
 os.makedirs('artifacts/csv', exist_ok=True)
 plt.rcParams.update({'font.family': 'serif', 'font.size': 12, 'pdf.fonttype': 42, 'axes.linewidth': 1.2})
 
+# generate burst traces
 def generate_burst_trace(
     *,
     base_gap_sec,
@@ -102,6 +103,7 @@ def run_atom(records, cfg, block_size, *, run_tag):
 
     return df
 
+# get queue occupancy over time
 def build_queue_timeline(real_df):
     events = []
 
@@ -125,6 +127,7 @@ def build_queue_timeline(real_df):
 
     return pd.DataFrame(timeline)
 
+# check whether the first burst drains before the second burst arrives
 def previous_burst_drained_before_next(queue_df, burst_start_times):
     for start_time in burst_start_times[1:]:
         before = queue_df[queue_df["time"] <= start_time]
@@ -147,12 +150,12 @@ def run_e5():
     block_size = cfg.storage.block_size
 
     # This is only a workload scale estimate
-    # the runner uses the compensation scheduler.
+    # the runner uses the compensation scheduler
     base_gap_sec = L * t_virt
 
     burst_sizes = [10, 30, 50, 70, 90]
 
-    # compensation is approximately (L + 1) timer ticks.
+    # compensation is approximately (L + 1) timer ticks
     expected_service_gap_sec = (L + 1) * t_virt
 
     service_tail_sec = (
@@ -166,7 +169,6 @@ def run_e5():
     final_burst_meta = None
     final_queue_df = None
 
-    # Start with a relatively tight gap. 
     drain_safety = 0.85
 
     for attempt in range(10):

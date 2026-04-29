@@ -13,8 +13,9 @@ from src.traces.alicloud import load_alicloud_trace
 from src.traces.msrc import load_msrc_trace
 from src.traces.schema import records_to_dataframe
 
-
+# normalize raw traces for experiments
 def main() -> None:
+
     cfg = ExperimentConfig.load_default()
     processed_dir = ensure_dir(REPO_ROOT / "data" / "processed")
 
@@ -31,7 +32,7 @@ def main() -> None:
     msrc_df = records_to_dataframe(msrc_records)
     msrc_out = processed_dir / "msrc_src1_0_trace.csv"
     msrc_df.to_csv(msrc_out, index=False)
-    print(f"  saved {len(msrc_df)} records to {msrc_out}")
+    print(f"saved to {msrc_out}")
 
     print("parsing AliCloud ...")
     alicloud_records = load_alicloud_trace(
@@ -42,7 +43,7 @@ def main() -> None:
     alicloud_df = records_to_dataframe(alicloud_records)
     alicloud_out = processed_dir / "alicloud_device32_trace.csv"
     alicloud_df.to_csv(alicloud_out, index=False)
-    print(f"  saved {len(alicloud_df)} records to {alicloud_out}")
+    print(f"saved to {alicloud_out}")
 
 if __name__ == "__main__":
     main()

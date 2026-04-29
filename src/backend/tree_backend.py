@@ -175,7 +175,9 @@ class TreeBackend:
         flat_index = self.flatten_address(normalized.address)
         self.bucket_store.write(flat_index, normalized)
 
+    # return the bucket address at a given level on a leaf path
     def bucket_address_on_path(self, leaf: int, level: int) -> BucketAddress:
+
         return bucket_address_on_path(
             tree_height=self.tree_height,
             leaf=leaf,
