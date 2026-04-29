@@ -56,9 +56,8 @@ The evaluation compares AtomORAM with the following baselines:Non-recursive Path
 
 ### Installation
 
-1. Clone the repository and navigate to the project root:
+1. Download or clone the repository, then navigate to the project root:
     ```bash
-    git clone https://github.com/WxxW2002/atomoram.git
     cd atomoram
     ```
 
