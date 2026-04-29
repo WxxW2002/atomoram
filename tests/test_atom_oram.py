@@ -416,7 +416,6 @@ def test_atom_oram_remote_lower_half_online_read_keeps_network_cost() -> None:
 def test_atom_oram_pipeline_io_counts_across_one_epoch() -> None:
     oram = make_oram()
 
-    # Use a fixed target bucket that does not overlap the epoch path for leaf 13.
     target_bucket = BucketAddress(level=4, index=0)
     _pin_epoch(oram, leaf=13, step=0)
 
@@ -425,7 +424,6 @@ def test_atom_oram_pipeline_io_counts_across_one_epoch() -> None:
         (2, 2, 2, BucketAddress(level=3, index=6)),
         # middle step: read new upper, write carried/lower and target
         (1, 2, 1, BucketAddress(level=2, index=3)),
-        # middle step
         (1, 2, 1, BucketAddress(level=1, index=1)),
         # last step: read root, write level 1, root, and target
         (1, 3, 1, None),

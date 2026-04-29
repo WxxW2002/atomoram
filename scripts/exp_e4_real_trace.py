@@ -92,21 +92,10 @@ def run_e4():
     for name, path in traces.items():
         records = load_trace(path, limit=2000)
 
-        path_lats = run_baseline(
-            PathORAM, cfg, records, latency_model, block_size,
-            run_tag=f"{name}_path",
-        )
-        ring_lats = run_baseline(
-            RingORAM, cfg, records, latency_model, block_size,
-            run_tag=f"{name}_ring",
-        )
+        path_lats = run_baseline(PathORAM, cfg, records, latency_model, block_size, run_tag=f"{name}_path")
+        ring_lats = run_baseline(RingORAM, cfg, records, latency_model, block_size, run_tag=f"{name}_ring")
 
-        atom_storage_cfg = prepare_storage_config(
-            cfg.storage,
-            exp_name="e4",
-            protocol_name="AtomORAM",
-            run_tag=f"{name}_atom",
-        )
+        atom_storage_cfg = prepare_storage_config(cfg.storage, exp_name="e4", protocol_name="AtomORAM", run_tag=f"{name}_atom")
         atom_protocol = instantiate_protocol(AtomORAM, cfg, atom_storage_cfg, rng_seed=0)
 
         runner = AtomEventRunner(latency_model=latency_model, atom_config=cfg.atom)

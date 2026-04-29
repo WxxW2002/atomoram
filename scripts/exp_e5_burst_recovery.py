@@ -146,19 +146,15 @@ def run_e5():
     t_virt = cfg.atom.tick_interval_sec
     block_size = cfg.storage.block_size
 
-    # Same normalization as E1/E3:
-    # alpha = Delta t_real / (L * t_virt).
-    # This is only a workload scale; the runner uses the compensation scheduler.
+    # This is only a workload scale estimate
+    # the runner uses the compensation scheduler.
     base_gap_sec = L * t_virt
 
     burst_sizes = [10, 30, 50, 70, 90]
 
-    # Expected waiting between successive real requests under level-uniform
     # compensation is approximately (L + 1) timer ticks.
     expected_service_gap_sec = (L + 1) * t_virt
 
-    # Single-tail term used only as a conservative drain-gap estimate.
-    # It is not repeatedly charged per virtual tick.
     service_tail_sec = (
         2 * cfg.network.rtt_sec
         + 2 * cfg.server_io.bucket_read_sec
@@ -170,8 +166,7 @@ def run_e5():
     final_burst_meta = None
     final_queue_df = None
 
-    # Start with a relatively tight gap.  Increase only if the simulated queue
-    # has not drained before the next burst.
+    # Start with a relatively tight gap. 
     drain_safety = 0.85
 
     for attempt in range(10):
@@ -215,7 +210,6 @@ def run_e5():
     ):
         raise RuntimeError(
             "Could not construct an E5 trace where each previous burst drains "
-            "before the next burst starts. Increase retry count or drain_safety."
         )
 
     real_df = final_df[final_df["service_kind"] == "real"].copy()
@@ -239,22 +233,13 @@ def run_e5():
 
     fig, ax = plt.subplots(figsize=(8, 4.5))
 
-    ax.plot(
-        final_queue_df["time"],
-        final_queue_df["queue_length"],
-        drawstyle="steps-post",
-        linewidth=1.8,
-    )
+    ax.plot(final_queue_df["time"], final_queue_df["queue_length"], drawstyle="steps-post", linewidth=1.8)
 
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Queue Length")
     ax.grid(True, linestyle="--", alpha=0.5)
 
-    fig.savefig(
-        "artifacts/figs/E5_burst_recovery.pdf",
-        format="pdf",
-        bbox_inches="tight",
-    )
+    fig.savefig("artifacts/figs/E5_burst_recovery.pdf", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':
     run_e5()

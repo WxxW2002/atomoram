@@ -218,8 +218,7 @@ def test_atom_event_runner_no_fixed_virtual_count_between_reals() -> None:
 
     assert len(middle) >= 1
     assert bool(middle["compensation_satisfied"].iloc[-1]) is True
-    # The count is determined by level-match waiting, not by a fixed
-    # lambda*logN parameter passed to runner.run().
+    # The count is determined by compensation
     assert runner.required_virtual_ticks_executed >= len(middle)
 
 

@@ -50,12 +50,6 @@ def load_trace(file_path, limit=5000):
 
 
 def warmup_protocol(protocol, runner, block_size, reference_gap_sec, num_blocks=50000):
-    """Warm AtomORAM through the same compensation scheduler used in experiments.
-
-    This replaces the old direct write + fixed virtual-tick loop. The timestamps
-    are spaced by the sparse reference gap, so warmup does not intentionally
-    create a large queue.
-    """
     records = []
     for i in range(num_blocks):
         records.append(
@@ -157,10 +151,7 @@ def run_a2():
                 "Queue_Length": queue_data[name],
                 "CDF": yvals,
             }
-        ).to_csv(
-            f"artifacts/csv/A2_{slug_map[name]}_distribution.csv",
-            index=False,
-        )
+        ).to_csv(f"artifacts/csv/A2_{slug_map[name]}_distribution.csv", index=False)
 
     for data_dict, xlabel, is_log, out_name in [
         (
@@ -187,14 +178,7 @@ def run_a2():
         for name in plot_order:
             data = data_dict[name]
             yvals = _cdf_yvals(len(data))
-            ax.plot(
-                data,
-                yvals,
-                label=name,
-                linewidth=2,
-                linestyle=style_map[name]["linestyle"],
-                zorder=style_map[name]["zorder"],
-            )
+            ax.plot(data, yvals, label=name, linewidth=2, linestyle=style_map[name]["linestyle"], zorder=style_map[name]["zorder"])
             if len(data) > 0:
                 max_x = max(max_x, int(np.max(data)))
 
@@ -207,17 +191,8 @@ def run_a2():
             ax.set_xlim(left=0, right=max(1, max_x) + 0.5)
 
         ax.grid(True, linestyle="--", alpha=0.5)
-        ax.legend(
-            loc="lower center",
-            bbox_to_anchor=(0.5, 1.02),
-            ncol=2,
-            frameon=False,
-        )
-        fig.savefig(
-            f"artifacts/figs/A2_{out_name}",
-            format="pdf",
-            bbox_inches="tight",
-        )
+        ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
+        fig.savefig(f"artifacts/figs/A2_{out_name}", format="pdf", bbox_inches="tight")
 
 
 if __name__ == "__main__":

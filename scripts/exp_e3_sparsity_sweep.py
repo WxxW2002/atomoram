@@ -100,63 +100,20 @@ def run_e3():
     )
     ax1.set_ylabel("End-to-End Latency (s)")
 
-    line1 = ax1.plot(
-        df_plot["Load_Intensity"],
-        df_plot["Mean_Latency"],
-        marker="o",
-        label="Mean Latency",
-        linewidth=2,
-        color="tab:orange",
-        linestyle="--",
-        alpha=0.9,
-    )
-    line2 = ax1.plot(
-        df_plot["Load_Intensity"],
-        df_plot["P95_Latency"],
-        marker="^",
-        label="P95 Latency",
-        linewidth=2,
-        alpha=0.9,
-        linestyle="--",
-        color="tab:orange",
-    )
+    line1 = ax1.plot(df_plot["Load_Intensity"], df_plot["Mean_Latency"], marker="o", label="Mean Latency", linewidth=2, color="tab:orange", linestyle="--", alpha=0.9)
+    line2 = ax1.plot(df_plot["Load_Intensity"], df_plot["P95_Latency"], marker="^", label="P95 Latency", linewidth=2, alpha=0.9, linestyle="--", color="tab:orange")
 
-    boundary = ax1.axvline(
-        x=1.0,
-        linestyle=":",
-        label=r"Boundary ($\rho=1$)",
-    )
+    boundary = ax1.axvline(x=1.0, linestyle=":", label=r"Boundary ($\rho=1$)")
 
     ax2 = ax1.twinx()
     ax2.set_ylabel("Max Queue Length")
 
-    line3 = ax2.plot(
-        df_plot["Load_Intensity"],
-        df_plot["Max_Queue"],
-        marker="s",
-        label="Max Queue",
-        linewidth=2,
-        color="tab:blue",
-        alpha=0.7,
-    )
-
+    line3 = ax2.plot(df_plot["Load_Intensity"], df_plot["Max_Queue"], marker="s", label="Max Queue", linewidth=2, color="tab:blue", alpha=0.7)
     lines = line1 + line2 + line3 + [boundary]
-    ax1.legend(
-        lines,
-        [l.get_label() for l in lines],
-        loc="lower center",
-        bbox_to_anchor=(0.5, 1.02),
-        ncol=4,
-        frameon=False,
-    )
 
+    ax1.legend(lines, [l.get_label() for l in lines], loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=4, frameon=False)
     ax1.grid(True, linestyle="--", alpha=0.5)
-
-    plt.savefig(
-        "artifacts/figs/E3_sparsity_sweep.pdf",
-        format="pdf",
-        bbox_inches="tight",
-    )
+    plt.savefig("artifacts/figs/E3_sparsity_sweep.pdf", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':
     run_e3()
