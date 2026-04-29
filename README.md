@@ -1,7 +1,7 @@
 # Atom ORAM:  Toward $O(1)$ Online Server I/O for Low-Latency under Sparse Workloads
 
 ## Introduction
-AtomORAM is a novel Oblivious RAM (ORAM) construction that achieves $O(1)$ online server I/O and $O(1)$ online bandwidth within a single round trip. By decoupling the costly access obfuscation process from actual data retrieval via a timer-driven *Dummy Access Insertion* mechanism, AtomORAM amortizes the overhead required to hide access patterns across inter-request intervals.
+AtomORAM is a novel Oblivious RAM (ORAM) construction that achieves $O(1)$ online server I/O and $O(1)$ online bandwidth within a single network round trip. By decoupling the costly access obfuscation process from actual data retrieval via a timer-driven *Dummy Access Insertion* mechanism, AtomORAM amortizes the overhead required to hide access patterns across inter-request intervals.
 
 This repository contains a conceptual prototype for academic research and is designed to produce the theoretical claims and experimental results presented in our paper. It is not optimized or intended for production deployment.
 
@@ -14,18 +14,17 @@ This implementation is open-sourced under the Apache v2 license([License](LICENS
 ### Overview
 
 * [Installation](#installation)
-* [Figure 1: Sparse Slack CDF](#figure-1-sparse-slack-cdf)
-* [Figure 2: Mechanism Validation (Online Server I/O & Latency)](#figure-2-mechanism-validation-online-server-io--latency)
-* [Figure 3: Synthetic Sparsity Sweep](#figure-3-synthetic-sparsity-sweep)
-* [Figure 4: Real-World Trace Comparison](#figure-4-real-world-trace-comparison)
+* [Figure 3: Mechanism Validation](#figure-3-mechanism-validation-online-server-io--latency)
+* [Figure 4: Sparsity Sweep](#figure-4-sparsity-sweep)
 * [Figure 5: Burst Recovery](#figure-5-burst-recovery)
-* [Figure A1: Amortized Bandwidth](#figure-a1-amortized-bandwidth)
-* [Figure A2: Stash and Queue Distributions](#figure-a2-stash-and-queue-empirical-distributions)
+* [Figure 6: Sparse Slack CDF](#figure-6-sparse-slack-cdf)
+* [Figure 7 & Figure 8: Stash and Queue Empirical Distribution](#figure-7--figure-8-stash-and-queue-empirical-distributions)
+* [Table 3: Real-World Trace Comparison](#table-3-real-world-trace-comparison)
 
 Requirements
 * **Environment**: Ubuntu 22.04 LTS (Recommended)
 * **Software**: Python 3.10+, with dependencies listed in `requirements.txt`.
-* **Hardware**: We tested on a 16-core 32GB ubuntu machine in Tencent Cloud. Recommended at least 16GB RAM and 50GB storage.
+* **Hardware**: We tested on a 16-core 32GB ubuntu machine in Tencent Cloud. Recommended at least 16GB RAM and 100GB storage.
 
 The tree structure of the project is as follows:
 ```text
@@ -87,117 +86,112 @@ The following commands will produce the results of the experiment. All generated
 
 ---
 
-#### Figure 1: Sparse Slack CDF
+
+#### Figure 3: Mechanism Validation (Online Server I/O & Latency)
 ```bash
-PYTHONPATH=. python3 scripts/exp_e1_slack_cdf.py
-```
-
-This command verifies the feasibility of the Sparse Access Assumption on real-world cloud traces by showing the Cumulative Distribution Function (CDF) of the idle gaps between real requests.
-
-The generated figure is saved in artifacts/figs/Fig1_Sparse_Slack_CDF.pdf, and the raw data is saved in artifacts/csv/E1_MSRC_CDF.csv, artifacts/csv/E1_Alic_CDF.csv.
-
-<details>
-<summary>Sample Figure 1 output</summary>
-<img src="artifacts/figs/E1_sparse_slack_cdf.png">
-</details>
-
----
-
-#### Figure 2: Mechanism Validation (Online Server I/O & Latency)
-```bash
-PYTHONPATH=. python3 scripts/exp_e2_mechanism.py
+PYTHONPATH=. python3 scripts/Fig3_mechanism_validation.py
 ```
 
 This command directly validates the core contribution: AtomORAM maintains $O(1)$ online server I/O and critical-path latency as the tree capacity ($N$) scales, in contrast to the $O(\log N)$ PathORAM and RingORAM.
 
-The generated figure is saved in artifacts/figs/Fig2_Mechanism_Validation.pdf, and the raw data is saved in artifacts/csv/E2_Online_IO.csv, artifacts/csv/E2_Online_Latency.csv.
-
-<details>
-<summary>Sample Figure 2 output</summary>
-<img src="artifacts/figs/E2_mechanism_validation.png">
-</details>
-
----
-
-#### Figure 3: Synthetic Sparsity Sweep
-```bash
-PYTHONPATH=. python3 scripts/exp_e3_sparsity_sweep.py
-```
-
-This command runs a boundary sweep experiment demonstrating system behavior across different sparsity ratios ($\alpha$). Shows near-zero queuing delay when $\alpha \ge 1$ (assumption holds) and expected graceful degradation when $\alpha < 1$ (assumption violated).
-
-The generated figure is saved in artifacts/figs/Fig3_Sparsity_Sweep.pdf, and the raw data is saved in artifacts/csv/E3_Sparsity_Sweep.csv.
+The generated figure is saved in artifacts/figs/Fig3_mechanism_validation.pdf, and the raw data is saved in artifacts/csv/Fig3_Online_IO.csv, artifacts/csv/Fig3_Online_Latency.csv.
 
 <details>
 <summary>Sample Figure 3 output</summary>
-<img src="artifacts/figs/E3_sparsity_sweep.png">
+<img src="artifacts/figs/Fig3_mechanism_validation.png">
 </details>
 
 ---
 
-#### Figure 4: Real-World Trace Comparison
+
+#### Figure 4: Sparsity Sweep
 ```bash
-PYTHONPATH=. python3 scripts/exp_e4_real_trace.py
+PYTHONPATH=. python3 scripts/Fig4_sparsity_sweep.py
 ```
 
-This command performs an end-to-end P95 latency evaluation comparing AtomORAM against Path ORAM and Ring ORAM on MSRC (sparse) and AliCloud (dense) workloads.
+This command runs a boundary sweep experiment demonstrating system behavior across different intensity ratios ($\rho$). Shows near-zero queuing delay when $\rho < 1$ (sparsity holds) and expected graceful degradation when $\rho \ge 1$ (sparsity violated).
 
-The generated figure is saved in artifacts/figs/Fig4_Real_Trace_Comparison.pdf, and the raw data is saved in artifacts/csv/E4_Real_Trace_Comparison.csv.
+The generated figure is saved in artifacts/figs/Fig4_sparsity_sweep.pdf, and the raw data is saved in artifacts/csv/Fig4_sparsity_sweep.csv.
 
 <details>
 <summary>Sample Figure 4 output</summary>
-<img src="artifacts/figs/E4_real_trace_comparison.png">
-</details>  
+<img src="artifacts/figs/Fig4_sparsity_sweep.png">
+</details>
 
 ---
 
+
 #### Figure 5: Burst Recovery
 ```bash
-PYTHONPATH=. python3 scripts/exp_e5_burst_recovery.py
+PYTHONPATH=. python3 scripts/Fig5_burst_recovery.py
 ```
 
 This command demonstrates the resilience and self-healing capability of AtomORAM, showing how accumulated queue lengths during traffic bursts are digested during subsequent idle periods.
 
-The generated figure is saved in artifacts/figs/Fig5_Burst_Recovery.pdf, and the raw data is saved in artifacts/csv/E5_Burst_Recovery.csv.
+The generated figure is saved in artifacts/figs/Fig5_burst_recovery.pdf, and the raw data is saved in artifacts/csv/Fig5_burst_recovery.csv, artifacts/csv/Fig5_burst_metadata.csv, artifacts/csv/Fig5_queue_timeline.csv.
 
 <details>
 <summary>Sample Figure 5 output</summary>
-<img src="artifacts/figs/E5_burst_recovery.png">
+<img src="artifacts/figs/Fig5_burst_recovery.png">
 </details>
 
 ---
 
-#### Figure A1: Amortized Bandwidth
+#### Figure 6: Sparse Slack CDF
 ```bash
-PYTHONPATH=. python3 scripts/exp_a1_bandwidth.py
-```
-This command quantifies the total amortized bandwidth overhead. It demonstrates that while AtomORAM achieves $O(1)$ online server I/O, it honestly accounts for the necessary background bandwidth cost required to maintain security.
-
-The generated figure is saved in artifacts/figs/FigA1_Bandwidth.pdf, and the raw data is saved in artifacts/csv/A1_Bandwidth.csv.
-
-<details>
-<summary>Sample Figure A1 output</summary>
-<img src="artifacts/figs/A1_bandwidth.png">
-</details>
-
-#### Figure A2: Stash and Queue Empirical Distributions
-```bash
-PYTHONPATH=. python3 scripts/exp_a2_distributions.py
+PYTHONPATH=. python3 scripts/Fig6_slack_cdf.py
 ```
 
-This command runs appendix experiments demonstrating the physical bounds of the system in steady-state. FigA2_Stash_Distribution.pdf proves that client stash size is tightly bounded ($O(1)$ physical memory), refuting trivial caching concerns. FigA2_Queue_Distribution.pdf shows the long-tail queue distribution under dense workloads.
+This command verifies the feasibility of the Sparse Access Assumption on real-world cloud traces by showing the Cumulative Distribution Function (CDF) of the idle gaps between real requests.
 
-The generated figures are saved in artifacts/figs/FigA2_Stash_Distribution.pdf and artifacts/figs/FigA2_Queue_Distribution.pdf, and the raw data is saved in artifacts/csv/A2_*_Distribution.csv.
+The generated figure is saved in artifacts/figs/Fig6_sparse_slack_cdf.pdf, and the raw data is saved in artifacts/csv/Fig6_MSRC_cdf.csv, artifacts/csv/Fig6_AliCloud_cdf.csv.
 
 <details>
-<summary>Sample Figure A2 Stash output</summary>
-<img src="artifacts/figs/A2_stash_distribution.png">
+<summary>Sample Figure 6 output</summary>
+<img src="artifacts/figs/Fig6_sparse_slack_cdf.png">
+</details>
+
+---
+
+#### Figure 7 & Figure 8: Stash and Queue Empirical Distributions
+```bash
+PYTHONPATH=. python3 scripts/Fig7_Fig8_distributions.py
+```
+
+This command runs appendix experiments demonstrating the physical bounds of the system in steady-state. Fig7_stash_distribution.pdf proves that client stash size is tightly bounded ($O(1)$ physical memory), refuting trivial caching concerns. Fig8_queue_distribution.pdf shows the long-tail queue distribution under dense workloads.
+
+The generated figures are saved in artifacts/figs/Fig7_stash_distribution.pdf and artifacts/figs/Fig8_queue_distribution.pdf, and the raw data is saved in artifacts/csv/Fig7_msrc/alicloud_stash_distribution.csv and artifacts/csv/Fig8_msrc/alicloud_queue_distribution.csv.
+
+<details>
+<summary>Sample Figure 7 Stash output</summary>
+<img src="artifacts/figs/Fig7_stash_distribution.png">
 </details>
 
 <details>
-<summary>Sample Figure A2 Queue output</summary>
-<img src="artifacts/figs/A2_queue_distribution.png">
+<summary>Sample Figure 8 Queue output</summary>
+<img src="artifacts/figs/Fig8_queue_distribution.png">
 </details>
+
+
+
+#### Table 3: Real-World Trace Comparison
+```bash
+PYTHONPATH=. python3 scripts/Tab3_real_trace.py
+```
+
+This command performs an end-to-end P95 latency evaluation comparing AtomORAM against Path ORAM and Ring ORAM on MSRC (sparse) and AliCloud (dense) workloads.
+
+The generated figure is saved in artifacts/figs/Tab3_real_trace_comparison.pdf, and the raw data is saved in artifacts/csv/Tab3_real_trace_comparison.csv.
+
+<details>
+<summary>Sample Table 3 output</summary>
+<img src="artifacts/figs/Tab3_real_trace_comparison.png">
+</details>  
+
+---
+
+
+
 
 
 

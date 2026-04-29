@@ -148,23 +148,35 @@ def run_a2():
         pd.DataFrame(
             {
                 "Stash_Peak_During_Access": stash_data[name],
-                "Queue_Length": queue_data[name],
-                "CDF": yvals,
+                "CDF": _cdf_yvals(len(stash_data[name])),
             }
-        ).to_csv(f"artifacts/csv/A2_{slug_map[name]}_distribution.csv", index=False)
+        ).to_csv(
+            f"artifacts/csv/Fig7_{slug_map[name]}_stash_distribution.csv",
+            index=False,
+        )
+
+        pd.DataFrame(
+            {
+                "Queue_Length": queue_data[name],
+                "CDF": _cdf_yvals(len(queue_data[name])),
+            }
+        ).to_csv(
+            f"artifacts/csv/Fig8_{slug_map[name]}_queue_distribution.csv",
+            index=False,
+        )
 
     for data_dict, xlabel, is_log, out_name in [
         (
             stash_data,
             "Stash Size (Blocks)",
             False,
-            "stash_distribution.pdf",
+            "Fig7_stash_distribution.pdf",
         ),
         (
             queue_data,
             "Queue Length",
             True,
-            "queue_distribution.pdf",
+            "Fig8_queue_distribution.pdf",
         ),
     ]:
         fig, ax = plt.subplots(figsize=(7, 5))
@@ -192,7 +204,7 @@ def run_a2():
 
         ax.grid(True, linestyle="--", alpha=0.5)
         ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
-        fig.savefig(f"artifacts/figs/A2_{out_name}", format="pdf", bbox_inches="tight")
+        fig.savefig(f"artifacts/figs/{out_name}", format="pdf", bbox_inches="tight")
 
 
 if __name__ == "__main__":

@@ -121,7 +121,7 @@ def run_e4():
             })
 
     df_plot = pd.DataFrame(plot_data)
-    df_plot.to_csv("artifacts/csv/E4_real_trace_comparison.csv", index=False)
+    df_plot.to_csv("artifacts/csv/Tab3_real_trace_comparison.csv", index=False)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
     traces_labels = df_plot["Trace"].unique()
@@ -153,7 +153,7 @@ def run_e4():
     ax2.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
 
     plt.tight_layout()
-    plt.savefig("artifacts/figs/E4_real_trace_comparison.pdf", format="pdf", bbox_inches="tight")
+    plt.savefig("artifacts/figs/Tab3_real_trace_comparison.pdf", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':
     run_e4()

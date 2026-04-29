@@ -71,8 +71,8 @@ def run_e2():
             results_io[name].append(touches)
             results_lat[name].append(lat)
             
-    pd.DataFrame(results_io).to_csv('artifacts/csv/E2_Online_IO.csv', index=False)
-    pd.DataFrame(results_lat).to_csv('artifacts/csv/E2_Online_Latency.csv', index=False)
+    pd.DataFrame(results_io).to_csv('artifacts/csv/Fig3_Online_IO.csv', index=False)
+    pd.DataFrame(results_lat).to_csv('artifacts/csv/Fig3_Online_Latency.csv', index=False)
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
     markers = ['x', 's', '^', 'o']
@@ -90,7 +90,7 @@ def run_e2():
 
     fig.legend(lines, labels, loc='lower center', bbox_to_anchor=(0.5, 0.95), ncol=4, frameon=False)
     plt.tight_layout()
-    plt.savefig('artifacts/figs/E2_mechanism_validation.pdf', format='pdf', bbox_inches='tight')
+    plt.savefig('artifacts/figs/Fig3_mechanism_validation.pdf', format='pdf', bbox_inches='tight')
 
 if __name__ == '__main__':
     run_e2()

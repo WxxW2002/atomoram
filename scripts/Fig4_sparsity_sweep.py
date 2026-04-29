@@ -89,7 +89,7 @@ def run_e3():
         )
 
     df_out = pd.DataFrame(data_out)
-    df_out.to_csv("artifacts/csv/E3_sparsity_sweep.csv", index=False)
+    df_out.to_csv("artifacts/csv/Fig4_sparsity_sweep.csv", index=False)
 
     df_plot = df_out.sort_values("Load_Intensity")
 
@@ -113,7 +113,7 @@ def run_e3():
 
     ax1.legend(lines, [l.get_label() for l in lines], loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=4, frameon=False)
     ax1.grid(True, linestyle="--", alpha=0.5)
-    plt.savefig("artifacts/figs/E3_sparsity_sweep.pdf", format="pdf", bbox_inches="tight")
+    plt.savefig("artifacts/figs/Fig4_sparsity_sweep.pdf", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':
     run_e3()

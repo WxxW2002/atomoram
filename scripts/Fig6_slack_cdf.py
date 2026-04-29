@@ -29,7 +29,7 @@ def run_e1():
         yvals = np.arange(len(sorted_data)) / float(len(sorted_data) - 1)
         
         out_df = pd.DataFrame({'Slack_Alpha': sorted_data, 'CDF': yvals})
-        out_df.to_csv(f"artifacts/csv/E1_{label}_cdf.csv", index=False)
+        out_df.to_csv(f"artifacts/csv/Fig6_{label}_cdf.csv", index=False)
         
         ax.plot(sorted_data, yvals, label=label, linewidth=2)
 
@@ -44,7 +44,7 @@ def run_e1():
     ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
     ax.grid(True, linestyle='--', alpha=0.5)
 
-    plt.savefig('artifacts/figs/E1_sparse_slack_cdf.pdf', format='pdf', bbox_inches='tight')
+    plt.savefig('artifacts/figs/Fig6_sparse_slack_cdf.pdf', format='pdf', bbox_inches='tight')
 
 if __name__ == '__main__':
     run_e1()

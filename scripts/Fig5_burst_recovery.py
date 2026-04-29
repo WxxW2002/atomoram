@@ -228,10 +228,10 @@ def run_e5():
             "queueing_delay",
             "end_to_end_latency",
         ]
-    ].to_csv("artifacts/csv/E5_burst_recovery.csv", index=False)
+    ].to_csv("artifacts/csv/Fig5_burst_recovery.csv", index=False)
 
-    final_burst_meta.to_csv("artifacts/csv/E5_burst_metadata.csv", index=False)
-    final_queue_df.to_csv("artifacts/csv/E5_queue_timeline.csv", index=False)
+    final_burst_meta.to_csv("artifacts/csv/Fig5_burst_metadata.csv", index=False)
+    final_queue_df.to_csv("artifacts/csv/Fig5_queue_timeline.csv", index=False)
 
     fig, ax = plt.subplots(figsize=(8, 4.5))
 
@@ -241,7 +241,7 @@ def run_e5():
     ax.set_ylabel("Queue Length")
     ax.grid(True, linestyle="--", alpha=0.5)
 
-    fig.savefig("artifacts/figs/E5_burst_recovery.pdf", format="pdf", bbox_inches="tight")
+    fig.savefig("artifacts/figs/Fig5_burst_recovery.pdf", format="pdf", bbox_inches="tight")
 
 if __name__ == '__main__':
     run_e5()
